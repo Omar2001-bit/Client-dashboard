@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search, EyeOff, Eye, StickyNote } from "lucide-react";
 import { track } from "@/lib/activityTracker";

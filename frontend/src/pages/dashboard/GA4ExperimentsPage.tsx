@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FlaskConical, ArrowLeft, ChevronLeft, ChevronRight, Search, RefreshCw } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, RefreshCw } from "lucide-react";
 import { useGA4Data } from "@/hooks/useGA4Data";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";

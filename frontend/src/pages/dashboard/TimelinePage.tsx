@@ -17,7 +17,7 @@ export function TimelinePage() {
   const handleSelectPhase = useCallback((id: string | null) => {
     if (id) {
       const phase = phases.find((p) => p.id === id);
-      track({ type: "timeline_phase_selected", metadata: { phaseId: id, phaseName: phase?.name ?? id } });
+      track({ type: "timeline_phase_selected", metadata: { phaseId: id, phaseName: phase?.title ?? id } });
     }
     setSelectedPhaseId(id);
   }, [phases]);

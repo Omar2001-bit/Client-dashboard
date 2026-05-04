@@ -21,10 +21,6 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${fmt(startDate)} – ${end}`;
 }
 
-function isMetricKey(v: string): v is ExperimentMetricKey {
-  return metricKeys.includes(v as ExperimentMetricKey);
-}
-
 function roundMetric(v: number): number {
   return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
 }

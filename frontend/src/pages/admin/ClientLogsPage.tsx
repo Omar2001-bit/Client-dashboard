@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { collection, onSnapshot, orderBy, query, limit, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ArrowLeft, Activity, Eye, EyeOff, Search, Calendar, ToggleLeft, BarChart2, ArrowUpDown, MessageSquare, Clock, Globe, Users, Wifi, ExternalLink, ChevronRight, RefreshCw, Shield, LayoutDashboard, FlaskConical, Send, Download, FileText, Play, SkipForward, X } from "lucide-react";
+import { ArrowLeft, Activity, Eye, EyeOff, Search, Calendar, ToggleLeft, BarChart2, ArrowUpDown, MessageSquare, Clock, Globe, Users, Wifi, ExternalLink, ChevronRight, RefreshCw, Shield, LayoutDashboard, FlaskConical, Download, FileText, Play, SkipForward, X } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
 import type { ClientDoc } from "@/types";
 import type { ActivityEventType } from "@/lib/activityTracker";
