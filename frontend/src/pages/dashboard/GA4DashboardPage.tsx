@@ -6,6 +6,7 @@ import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuthStore } from "@/store/authStore";
+import type { ExperimentMetricKey } from "@/types";
 import type { GA4EnrichedExperiment } from "@/hooks/useGA4Data";
 
 function formatDateRange(startDate: string, endDate: string): string {
