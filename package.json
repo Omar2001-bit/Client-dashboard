@@ -1,0 +1,12 @@
+{
+  "name": "cro-dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:server\" --names \"frontend,server\" --prefix-colors \"green,cyan\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:server": "cd server && npm install --silent && node --watch index.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

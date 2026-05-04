@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  color: #0e1c26;
+  background: #f7fafb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Optimizers brand tokens */
+  --brand-primary: #6ae499;
+  --brand-dark: #0e1c26;
+  --brand-darkest: #020601;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: 'Sora', ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Selection */
+::selection {
+  background: #6ae499;
+  color: #0e1c26;
+}

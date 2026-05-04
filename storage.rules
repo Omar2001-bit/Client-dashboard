@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Client logos: admin write, authenticated clients read their own
+    match /clients/{clientId}/logo/{fileName} {
+      allow read: if request.auth != null
+                  && (request.auth.token.role == "admin"
+                      || request.auth.token.clientId == clientId);
+      allow write: if request.auth != null && request.auth.token.role == "admin";
+    }
+
+    // Exports: authenticated reads for matching client
+    match /exports/{clientId}/{fileName} {
+      allow read: if request.auth != null
+                  && (request.auth.token.role == "admin"
+                      || request.auth.token.clientId == clientId);
+      allow write: if false; // Cloud Functions only
+    }
+  }
+}

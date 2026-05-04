@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+functions/node_modules/
+
+# Build output
+frontend/dist/
+functions/lib/
+
+# Secrets — NEVER commit these
+functions/.env.local
+functions/serviceAccountKey.json
+functions/*.json.key
+.env.local
+server/ga4ServiceAccount.json
+server/*.json.key
+.mcp.json
+
+# Firebase emulator data
+.firebase/
+emulator-data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

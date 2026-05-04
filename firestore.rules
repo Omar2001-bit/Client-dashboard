@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+          && (
+            request.auth.token.role == "admin"
+            || request.auth.token.role == "executiveAdmin"
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "executiveAdmin"
+          );
+    }
+
+    function isClientOf(clientId) {
+      return isAuthenticated()
+          && (
+            (
+              request.auth.token.role == "client"
+              && request.auth.token.clientId == clientId
+            )
+            || (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "client"
+              && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.clientId == clientId
+            )
+          );
+    }
+
+    // Users: self-read, admin full access
+    match /users/{uid} {
+      allow read: if request.auth.uid == uid || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Clients root document: admin writes, clients read their own workspace metadata
+    match /clients/{clientId} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // Credentials subcollection: admin full access; clients can read their own
+    // (browser-direct Convert API calls — see frontend/src/pages/dashboard/dashboardData.ts)
+    match /clients/{clientId}/credentials/{document=**} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // Cached data: client can read their own workspace
+    match /clients/{clientId}/data/{document=**} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // Experiments collection: client reads their own; admin writes (browser-driven sync)
+    match /clients/{clientId}/experiments/{experimentId} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // Sync metadata: last sync timestamp etc.
+    match /clients/{clientId}/syncStatus/{document=**} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // ROI data: client can read their own
+    match /clients/{clientId}/roi/{document=**} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // Audit log: admin read, no user writes (Cloud Functions only)
+    match /auditLog/{document=**} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // App-wide integration config: admin only
+    match /appConfig/{documentId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ClickUp OAuth session state: admin only
+    match /clickupOAuthSessions/{sessionId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Dashboard settings: admin writes, clients read
+    match /clients/{clientId}/settings/{settingId} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+    // Timeline builder config: admin writes, clients read
+    match /clients/{clientId}/timeline/{documentId} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+    // Client preferences (exclusions): client can write their own
+    match /clients/{clientId}/settings/clientPreferences {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin() || isClientOf(clientId);
+    }
+
+    // Client activity logs: client writes their own, admin reads all
+    match /clients/{clientId}/activityLogs/{logId} {
+      allow create: if isClientOf(clientId);
+      allow read: if isAdmin();
+    }
+
+    // Support tickets: doc ID = clientId, one thread per client
+    match /supportTickets/{clientId} {
+      allow read, create, update: if isAdmin() || isClientOf(clientId);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read, create: if isAdmin() || isClientOf(clientId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

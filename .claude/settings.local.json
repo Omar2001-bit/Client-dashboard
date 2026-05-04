@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm create *)",
+      "Bash(mkdir -p \"C:/Users/Omar Maged/Desktop/New folder/functions/src/lib\")",
+      "Bash(mkdir -p \"C:/Users/Omar Maged/Desktop/New folder/frontend/src/lib\")",
+      "Bash(mkdir -p \"C:/Users/Omar Maged/Desktop/New folder/frontend/src/store\")",
+      "Bash(mkdir -p \"C:/Users/Omar Maged/Desktop/New folder/frontend/src/hooks\")",
+      "Bash(mkdir -p \"C:/Users/Omar Maged/Desktop/New folder/frontend/src/types\")",
+      "Bash(npx tsc *)",
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list)",
+      "Bash(npx --yes firebase-tools --version)",
+      "Bash(npx --yes firebase-tools projects:list)",
+      "Bash(npm run *)",
+      "Bash(npx firebase-tools *)",
+      "Bash(xargs grep *)",
+      "Bash(npm install *)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:api.convert.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:support.convert.com)",
+      "WebFetch(domain:unpkg.com)",
+      "WebFetch(domain:app.unpkg.com)",
+      "Bash(npx --yes @convertcom/mcp-server@latest --help)",
+      "Skill(update-config)",
+      "mcp__convert__accounts",
+      "mcp__convert__search_knowledge_base",
+      "mcp__convert__experiences",
+      "mcp__convert__projects",
+      "mcp__convert__goals",
+      "Bash(python3 -c ' *)",
+      "Bash(node *)",
+      "Bash(xargs wc *)",
+      "Bash(npx kill-port *)",
+      "Bash(firebase deploy *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Omar Maged\\\\Desktop\\\\New folder\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(npx vite *)",
+      "Bash(git *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "convert"
+  ]
+}
