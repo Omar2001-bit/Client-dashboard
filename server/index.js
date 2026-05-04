@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
 const admin = require("firebase-admin");
 const { google } = require("googleapis");
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
@@ -34,22 +33,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 const SUPPORT_EMAIL = "omar@optimizers.agency";
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
-});
+const SEND_EMAIL_URL = "https://us-central1-client-dash-9b027.cloudfunctions.net/sendEmailHttp";
+const INTERNAL_EMAIL_SECRET = process.env.INTERNAL_EMAIL_SECRET ?? "";
 
 async function sendEmail({ to, subject, html }) {
-  await transporter.sendMail({
-    from: `Optimizers Support <${GMAIL_USER}>`,
-    to,
-    subject,
-    html,
+  const res = await fetch(SEND_EMAIL_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": INTERNAL_EMAIL_SECRET,
+    },
+    body: JSON.stringify({ to, subject, html }),
   });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`sendEmail error ${res.status}: ${err}`);
+  }
 }
 
 // ── Support emails → Gmail ────────────────────────────────────────────────────

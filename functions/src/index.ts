@@ -1,4 +1,5 @@
 export { createClientUser } from "./createClientUser";
+export { sendEmailHttp } from "./sendEmailHttp";
 export { sendOnboardingEmail } from "./sendOnboardingEmail";
 export { resetClientPassword } from "./resetClientPassword";
 export { calculateROI } from "./calculateROI";
