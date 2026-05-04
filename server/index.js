@@ -3,8 +3,8 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 const admin = require("firebase-admin");
 const { google } = require("googleapis");
-const serviceAccount = require("../functions/serviceAccountKey.json");
-const ga4ServiceAccount = require("./ga4ServiceAccount.json");
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+const ga4ServiceAccount = JSON.parse(process.env.GA4_SERVICE_ACCOUNT_JSON);
 
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
