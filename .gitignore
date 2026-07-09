@@ -9,13 +9,10 @@ functions/lib/
 
 # Secrets — NEVER commit these
 functions/.env.local
+server/.env.local
 functions/serviceAccountKey.json
 functions/*.json.key
 .env.local
-server/ga4ServiceAccount.json
-server/*.json.key
-server/.env
-.mcp.json
 
 # Firebase emulator data
 .firebase/
@@ -28,3 +25,4 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+server/ga4ServiceAccount.json
