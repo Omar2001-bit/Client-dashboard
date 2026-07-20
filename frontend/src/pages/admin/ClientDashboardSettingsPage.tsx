@@ -352,11 +352,11 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                         placeholder={exp.name}
                       />
                       <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-700">Original variant</label>
+                        <label className="block text-sm font-medium text-ink/80">Original variant</label>
                         <select
                           value={override.originalVariantId ?? ""}
                           onChange={(e) => setOverride(exp.id, { originalVariantId: e.target.value || undefined })}
-                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-200"
+                          className="border border-ink/15 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-200"
                         >
                           <option value="">Auto (from sync data)</option>
                           {(exp.variants ?? []).map((v) => (
@@ -369,7 +369,7 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-ink/80">
                         Notes for client
                       </label>
                       <textarea
@@ -377,12 +377,12 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                         onChange={(e) => setOverride(exp.id, { notes: e.target.value || undefined })}
                         placeholder="e.g. This test ran during a sale period — results may not reflect steady state."
                         rows={2}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-200"
+                        className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-200"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-700">Metric overrides</p>
+                      <p className="text-sm font-medium text-ink/80">Metric overrides</p>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
@@ -461,7 +461,7 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-600">Name</label>
+                  <label className="text-xs font-medium text-ink/70">Name</label>
                   <input
                     value={m.name}
                     onChange={(e) => setLocal((prev) => ({
@@ -474,7 +474,7 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-600">Start date</label>
+                  <label className="text-xs font-medium text-ink/70">Start date</label>
                   <input
                     type="date"
                     value={m.startDate}
@@ -488,7 +488,7 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-600">Status</label>
+                  <label className="text-xs font-medium text-ink/70">Status</label>
                   <select
                     value={m.status}
                     onChange={(e) => setLocal((prev) => ({
@@ -506,7 +506,7 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600">Notes</label>
+                <label className="text-xs font-medium text-ink/70">Notes</label>
                 <input
                   value={m.notes ?? ""}
                   onChange={(e) => setLocal((prev) => ({
@@ -575,11 +575,11 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                   onChange={(e) => setNewManual((p) => ({ ...p, startDate: e.target.value }))}
                 />
                 <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <label className="block text-sm font-medium text-ink/80">Status</label>
                   <select
                     value={newManual.status}
                     onChange={(e) => setNewManual((p) => ({ ...p, status: e.target.value as ManualExperiment["status"] }))}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                    className="border border-ink/15 rounded-lg px-3 py-2 text-sm w-full"
                   >
                     {["running", "completed", "paused", "draft", "archived"].map((s) => (
                       <option key={s} value={s}>{s}</option>

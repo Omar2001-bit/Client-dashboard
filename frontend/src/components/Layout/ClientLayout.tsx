@@ -1,13 +1,15 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOpen, User, BarChart3 } from "lucide-react";
+import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOpen, User, BarChart3, ListChecks, LineChart } from "lucide-react";
 import { useLogout } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useTutorial } from "@/hooks/useTutorial";
 import { Tutorial } from "@/components/Tutorial";
 import { Logo } from "@/components/ui/Logo";
 import { FloatingChat } from "@/components/FloatingChat";
+import { useAuthStore } from "@/store/authStore";
+import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 
-const navItems = [
+const baseNavItems = [
   { to: "/dashboard/ab-testing", icon: FlaskConical, label: "A/B Testing Results", end: true },
   { to: "/dashboard/ga4", icon: BarChart3, label: "GA4 Data View" },
   { to: "/dashboard/timeline", icon: CalendarDays, label: "Timeline" },
@@ -22,6 +24,14 @@ export function ClientLayout() {
   const navigate = useNavigate();
   useActivityTracker();
   const { active, currentStep, steps, start, next, skipStep, skipAll } = useTutorial();
+  const clientId = useAuthStore((s) => s.clientId);
+  const { settings } = useDashboardSettings(clientId);
+
+  const navItems = [
+    ...baseNavItems,
+    ...(settings.auditTrackingEnabled ? [{ to: "/dashboard/audit-findings", icon: ListChecks, label: "Audit Findings" }] : []),
+    ...(settings.ga4ReportsEnabled ? [{ to: "/dashboard/analytics-reports", icon: LineChart, label: "Analytics Reports" }] : []),
+  ];
 
   const handleLogout = async () => {
     await logout();
@@ -29,7 +39,7 @@ export function ClientLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#f7fafb]">
+    <div className="min-h-screen flex bg-canvas">
       <aside className="w-64 bg-white border-r border-ink/10 flex flex-col">
         <div className="px-6 py-6 border-b border-ink/5 flex items-center text-ink">
           <Logo variant="full" className="h-7 w-auto" />
@@ -43,7 +53,7 @@ export function ClientLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-brand-500 text-ink"
+                    ? "bg-brand-500 text-ink-deep"
                     : "text-ink/60 hover:bg-ink/5 hover:text-ink"
                 }`
               }

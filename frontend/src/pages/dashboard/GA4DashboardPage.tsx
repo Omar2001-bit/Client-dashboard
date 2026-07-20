@@ -4,7 +4,19 @@ import { BarChart3, ArrowLeft, RefreshCw } from "lucide-react";
 import { useGA4Data } from "@/hooks/useGA4Data";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  StatusBadge,
+  Button,
+  Alert,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  EmptyState,
+  Skeleton,
+} from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import type { ExperimentMetricKey } from "@/types";
 import type { GA4EnrichedExperiment } from "@/hooks/useGA4Data";
@@ -55,7 +67,7 @@ function KPICard({
   const color =
     tone === "positive" ? "text-emerald-700" : tone === "negative" ? "text-red-600" : "text-ink";
   return (
-    <div className="rounded-2xl border border-ink/10 bg-white p-5 shadow-sm">
+    <div className="rounded-brand border border-ink/10 bg-white p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">{label}</p>
       <p className={`mt-2 text-2xl font-bold ${color}`}>{value}</p>
       {sub && <p className="mt-1 text-xs text-ink/50">{sub}</p>}
@@ -149,35 +161,27 @@ export function GA4DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <p className="text-xs text-ink/40">Each experiment uses its Convert running period</p>
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="flex items-center gap-1.5 rounded-xl border border-ink/15 px-3 py-2 text-sm text-ink/60 hover:text-ink hover:bg-ink/5 disabled:opacity-40 transition-colors"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          <Button variant="secondary" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Error */}
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {(error as Error).message}
-        </div>
-      )}
+      {error && <Alert tone="danger">{(error as Error).message}</Alert>}
 
       {/* Loading */}
       {isLoading && !error && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-ink/5" />
+              <Skeleton key={i} className="h-24 rounded-2xl" />
             ))}
           </div>
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-2xl bg-ink/5" />
+              <Skeleton key={i} className="h-20 rounded-2xl" />
             ))}
           </div>
         </div>
@@ -225,63 +229,63 @@ export function GA4DashboardPage() {
 
           {/* Experiments table */}
           {experiments.length === 0 ? (
-            <div className="rounded-2xl border border-ink/10 bg-white py-16 text-center text-sm text-ink/50">
-              No matched GA4 audiences found. Make sure experiments are synced from Convert first.
-            </div>
+            <EmptyState
+              className="rounded-brand border border-ink/10 bg-white py-16"
+              title="No matched GA4 audiences found. Make sure experiments are synced from Convert first."
+            />
           ) : (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-ink/40">
                 Experiments ({experiments.length})
               </h2>
               <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
-                <table className="w-full table-fixed text-sm">
-                  <colgroup>
-                    <col />
-                    <col className="w-[110px]" />
-                    <col className="w-[130px]" />
-                    <col className="w-[110px]" />
-                    <col className="w-[110px]" />
-                    <col className="w-[110px]" />
-                    <col className="w-[100px]" />
-                    <col className="w-[110px]" />
-                  </colgroup>
-                  <thead>
-                    <tr className="border-b border-ink/10 bg-ink/[0.02] text-left text-xs uppercase tracking-wider text-ink/50">
-                      <th className="px-5 py-3 font-semibold">Experiment</th>
-                      <th className="px-5 py-3 font-semibold">Status</th>
-                      <th className="px-5 py-3 font-semibold">Revenue</th>
-                      <th className="px-5 py-3 font-semibold">RPV</th>
-                      <th className="px-5 py-3 font-semibold">Purchases</th>
-                      <th className="px-5 py-3 font-semibold">Products</th>
-                      <th className="px-5 py-3 font-semibold">CVR</th>
-                      <th className="px-5 py-3 font-semibold">AOV</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {experiments.map((experiment) => (
-                      <tr
-                        key={experiment.experimentId}
-                        className="border-b border-ink/5 transition-colors hover:bg-ink/[0.02]"
-                      >
-                        <td className="px-5 py-3 font-medium text-ink">
-                          <span className="truncate block">{experiment.name}</span>
-                          <span className="text-[10px] text-ink/40">
-                            {formatDateRange(experiment.startDate, experiment.endDate)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <StatusBadge status={experiment.status} />
-                        </td>
-                        <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
-                        <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                        <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
-                        <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
-                        <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
-                        <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                  <Table className="table-fixed">
+                    <colgroup>
+                      <col />
+                      <col className="w-[110px]" />
+                      <col className="w-[130px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[110px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[110px]" />
+                    </colgroup>
+                    <THead>
+                      <TR className="bg-ink/[0.02] hover:bg-transparent">
+                        <TH>Experiment</TH>
+                        <TH>Status</TH>
+                        <TH>Revenue</TH>
+                        <TH>RPV</TH>
+                        <TH>Purchases</TH>
+                        <TH>Products</TH>
+                        <TH>CVR</TH>
+                        <TH>AOV</TH>
+                      </TR>
+                    </THead>
+                    <TBody>
+                      {experiments.map((experiment) => (
+                        <TR key={experiment.experimentId}>
+                          <TD className="font-medium text-ink">
+                            <span className="block truncate">{experiment.name}</span>
+                            <span className="text-[10px] text-ink/40">
+                              {formatDateRange(experiment.startDate, experiment.endDate)}
+                            </span>
+                          </TD>
+                          <TD>
+                            <StatusBadge status={experiment.status} />
+                          </TD>
+                          <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
+                          <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                          <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
+                          <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                        </TR>
+                      ))}
+                    </TBody>
+                  </Table>
+                </div>
               </div>
             </div>
           )}
@@ -301,11 +305,11 @@ function MetricCell({
   formatValue: (value: number) => string;
 }) {
   const uplift = experiment.uplifts?.[metric];
-  if (!uplift) return <td className="whitespace-nowrap px-5 py-3 text-ink/40">--</td>;
+  if (!uplift) return <TD className="whitespace-nowrap text-ink/40">--</TD>;
   return (
-    <td className="whitespace-nowrap px-5 py-3">
+    <TD className="whitespace-nowrap">
       <div className={`font-semibold ${toneClass(uplift.uplift)}`}>{formatValue(uplift.uplift)}</div>
       <div className="text-xs text-ink/45">{formatSignedDecimal(uplift.upliftPercent)}%</div>
-    </td>
+    </TD>
   );
 }

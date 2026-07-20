@@ -17,6 +17,9 @@ export type ActivityEventType =
   | "sort_change"
   | "list_page_change"
   | "experiment_visibility_toggle"
+  // Audit findings
+  | "audit_finding_view"
+  | "audit_filter_change"
   // Experiment detail
   | "variation_preview_click"
   | "experiment_detail_hide_toggle"

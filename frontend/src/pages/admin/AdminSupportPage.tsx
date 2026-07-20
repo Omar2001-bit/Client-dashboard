@@ -192,7 +192,7 @@ export function AdminSupportPage() {
                   const isMe = msg.senderRole === "admin";
                   return (
                     <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMe ? "bg-brand-500 text-ink" : "bg-ink/5 text-ink"}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMe ? "bg-brand-500 text-ink-deep" : "bg-ink/5 text-ink"}`}>
                         {!isMe && (
                           <p className="text-[11px] font-semibold text-ink/40 mb-0.5">{msg.senderName}</p>
                         )}

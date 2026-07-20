@@ -2,8 +2,19 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Button } from "@/components/ui/Button";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  Button,
+  StatusBadge,
+  TableContainer,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  EmptyState,
+  Skeleton,
+} from "@/components/ui";
 import { Plus, Search } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { ClientDoc } from "@/types";
@@ -26,10 +37,12 @@ export function ClientListPage() {
       c.contactEmail.toLowerCase().includes(search.toLowerCase())
   );
 
+  const colCount = currentRole === "executiveAdmin" ? 6 : 5;
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+        <h1 className="text-2xl font-bold text-ink">Clients</h1>
         <Link to="/admin/clients/new">
           <Button>
             <Plus className="h-4 w-4 mr-1" /> New User
@@ -38,76 +51,83 @@ export function ClientListPage() {
       </div>
 
       <div className="relative max-w-sm" data-tutorial="admin-clients-search">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-ink/40" />
         <input
           type="text"
           placeholder="Search clients..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 w-full"
+          className="w-full rounded-xl border border-ink/15 bg-white pl-9 pr-4 py-2 text-sm text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-brand-200"
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" data-tutorial="admin-clients-table">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <th className="text-left px-6 py-3">Company</th>
-              <th className="text-left px-6 py-3">Contact</th>
-              <th className="text-left px-6 py-3">Status</th>
-              <th className="text-left px-6 py-3">Engagement</th>
-              {currentRole === "executiveAdmin" && <th className="text-left px-6 py-3" data-tutorial="admin-client-paid">Client Paid</th>}
-              <th className="px-6 py-3" />
-            </tr>
-          </thead>
-          <tbody>
+      <TableContainer data-tutorial="admin-clients-table">
+        <Table>
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH>Company</TH>
+              <TH>Contact</TH>
+              <TH>Status</TH>
+              <TH>Engagement</TH>
+              {currentRole === "executiveAdmin" && <TH data-tutorial="admin-client-paid">Client Paid</TH>}
+              <TH />
+            </TR>
+          </THead>
+          <TBody>
             {loading
               ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-gray-50">
-                    {Array.from({ length: currentRole === "executiveAdmin" ? 6 : 5 }).map((__, j) => (
-                      <td key={j} className="px-6 py-4">
-                        <div className="animate-pulse h-4 bg-gray-100 rounded" />
-                      </td>
+                  <TR key={i} className="hover:bg-transparent">
+                    {Array.from({ length: colCount }).map((__, j) => (
+                      <TD key={j}>
+                        <Skeleton className="h-4" />
+                      </TD>
                     ))}
-                  </tr>
+                  </TR>
                 ))
               : filtered.map((client) => (
-                  <tr key={client.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">{client.name}</td>
-                    <td className="px-6 py-4 text-gray-500">
+                  <TR key={client.id}>
+                    <TD className="font-medium text-ink">{client.name}</TD>
+                    <TD>
                       <div>{client.contactName}</div>
-                      <div className="text-xs text-gray-400">{client.contactEmail}</div>
-                    </td>
-                    <td className="px-6 py-4">
+                      <div className="text-xs text-ink/40">{client.contactEmail}</div>
+                    </TD>
+                    <TD>
                       <StatusBadge status={client.status} />
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
+                    </TD>
+                    <TD>
                       {client.contractStartDate?.toDate().toLocaleDateString()}
-                      {client.contractEndDate ? ` to ${client.contractEndDate.toDate().toLocaleDateString()}` : ""}
-                    </td>
+                      {client.contractEndDate
+                        ? ` to ${client.contractEndDate.toDate().toLocaleDateString()}`
+                        : ""}
+                    </TD>
                     {currentRole === "executiveAdmin" && (
-                      <td className="px-6 py-4 text-gray-500">
-                        USD {(client.servicePrice ?? client.agencyFee)?.toLocaleString()}
-                      </td>
+                      <TD>USD {(client.servicePrice ?? client.agencyFee)?.toLocaleString()}</TD>
                     )}
-                    <td className="px-6 py-4 text-right space-x-3">
-                      <Link to={`/admin/clients/${client.id}/preview`} className="text-xs text-gray-500 hover:text-gray-700">
+                    <TD className="text-right space-x-3">
+                      <Link
+                        to={`/admin/clients/${client.id}/preview`}
+                        className="text-xs text-ink/50 hover:text-ink"
+                      >
                         Preview
                       </Link>
-                      <Link to={`/admin/clients/${client.id}`} className="text-xs text-brand-600 hover:underline font-medium">
+                      <Link
+                        to={`/admin/clients/${client.id}`}
+                        className="text-xs font-medium text-brand-600 hover:underline"
+                      >
                         Edit
                       </Link>
-                    </td>
-                  </tr>
+                    </TD>
+                  </TR>
                 ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         {!loading && filtered.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <p>{search ? "No clients match your search." : "No clients yet."}</p>
-          </div>
+          <EmptyState
+            className="py-16"
+            title={search ? "No clients match your search." : "No clients yet."}
+          />
         )}
-      </div>
+      </TableContainer>
     </div>
   );
 }

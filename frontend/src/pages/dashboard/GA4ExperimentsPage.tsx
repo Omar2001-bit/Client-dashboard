@@ -1,10 +1,23 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Search, RefreshCw } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw } from "lucide-react";
 import { useGA4Data } from "@/hooks/useGA4Data";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  StatusBadge,
+  Button,
+  Alert,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  Pagination,
+  EmptyState,
+  Skeleton,
+} from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import type { ExperimentMetricKey } from "@/types";
 import type { GA4EnrichedExperiment as EnrichedExp } from "@/hooks/useGA4Data";
@@ -102,23 +115,15 @@ export function GA4ExperimentsPage() {
         </div>
         <div className="flex items-center gap-3">
           <p className="text-xs text-ink/40">Each experiment uses its Convert running period</p>
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="flex items-center gap-1.5 rounded-xl border border-ink/15 px-3 py-2 text-sm text-ink/60 hover:text-ink hover:bg-ink/5 disabled:opacity-40 transition-colors"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          <Button variant="secondary" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Error */}
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {(error as Error).message}
-        </div>
-      )}
+      {error && <Alert tone="danger">{(error as Error).message}</Alert>}
 
       {!error && (
         <>
@@ -152,93 +157,78 @@ export function GA4ExperimentsPage() {
 
           {/* Table */}
           <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
-            <table className="w-full table-fixed text-sm">
-              <colgroup>
-                <col />
-                <col className="w-[120px]" />
-                <col className="w-[140px]" />
-                <col className="w-[120px]" />
-                <col className="w-[120px]" />
-                <col className="w-[120px]" />
-                <col className="w-[110px]" />
-                <col className="w-[120px]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-ink/10 bg-ink/[0.02] text-left text-xs uppercase tracking-wider text-ink/50">
-                  <th className="px-5 py-3 font-semibold">Experiment</th>
-                  <th className="px-5 py-3 font-semibold">Status</th>
-                  <th className="px-5 py-3 font-semibold">Revenue</th>
-                  <th className="px-5 py-3 font-semibold">RPV</th>
-                  <th className="px-5 py-3 font-semibold">Purchases</th>
-                  <th className="px-5 py-3 font-semibold">Products</th>
-                  <th className="px-5 py-3 font-semibold">CVR</th>
-                  <th className="px-5 py-3 font-semibold">AOV</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading
-                  ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                      <tr key={i} className="border-b border-ink/5">
-                        <td className="px-5 py-4" colSpan={8}>
-                          <div className="h-4 animate-pulse rounded bg-ink/5" />
-                        </td>
-                      </tr>
-                    ))
-                  : experiments.map((experiment) => (
-                      <tr
-                        key={experiment.experimentId}
-                        className="border-b border-ink/5 transition-colors hover:bg-ink/[0.02]"
-                      >
-                        <td className="px-5 py-3 font-medium text-ink">
-                          <span className="truncate block">{experiment.name}</span>
-                          <span className="text-[10px] text-ink/40">
-                            {formatDateRange(experiment.startDate, experiment.endDate)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <StatusBadge status={experiment.status} />
-                        </td>
-                        <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
-                        <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                        <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
-                        <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
-                        <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
-                        <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                      </tr>
-                    ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <Table className="table-fixed">
+                <colgroup>
+                  <col />
+                  <col className="w-[120px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[110px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
+                <THead>
+                  <TR className="bg-ink/[0.02] hover:bg-transparent">
+                    <TH>Experiment</TH>
+                    <TH>Status</TH>
+                    <TH>Revenue</TH>
+                    <TH>RPV</TH>
+                    <TH>Purchases</TH>
+                    <TH>Products</TH>
+                    <TH>CVR</TH>
+                    <TH>AOV</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {isLoading
+                    ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                        <TR key={i} className="hover:bg-transparent">
+                          <TD colSpan={8}>
+                            <Skeleton className="h-4" />
+                          </TD>
+                        </TR>
+                      ))
+                    : experiments.map((experiment) => (
+                        <TR key={experiment.experimentId}>
+                          <TD className="font-medium text-ink">
+                            <span className="block truncate">{experiment.name}</span>
+                            <span className="text-[10px] text-ink/40">
+                              {formatDateRange(experiment.startDate, experiment.endDate)}
+                            </span>
+                          </TD>
+                          <TD>
+                            <StatusBadge status={experiment.status} />
+                          </TD>
+                          <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
+                          <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                          <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
+                          <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                        </TR>
+                      ))}
+                </TBody>
+              </Table>
+            </div>
 
             {!isLoading && filtered.length === 0 && (
-              <div className="px-6 py-12 text-center text-sm text-ink/50">
-                No matched GA4 audiences found. Make sure experiments are synced from Convert first.
-              </div>
+              <EmptyState
+                className="py-12"
+                title="No matched GA4 audiences found. Make sure experiments are synced from Convert first."
+              />
             )}
 
             {!isLoading && filtered.length > 0 && (
-              <div className="flex items-center justify-between border-t border-ink/10 px-6 py-3">
-                <p className="text-xs text-ink/50">
-                  Showing {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length} experiments
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPage((p) => p - 1)}
-                    disabled={currentPage === 0}
-                    className="rounded-xl border border-ink/15 p-1.5 text-ink/60 transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-20"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="min-w-[80px] text-center text-xs font-semibold text-ink/70">
-                    Page {currentPage + 1} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={currentPage >= totalPages - 1}
-                    className="rounded-xl border border-ink/15 p-1.5 text-ink/60 transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-20"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
+              <div className="border-t border-ink/10 px-6 py-3">
+                <Pagination
+                  page={currentPage + 1}
+                  pageCount={totalPages}
+                  total={filtered.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={(p) => setPage(p - 1)}
+                />
               </div>
             )}
           </div>
@@ -258,12 +248,12 @@ function MetricCell({
   formatValue: (value: number) => string;
 }) {
   const uplift = experiment.uplifts?.[metric];
-  if (!uplift) return <td className="whitespace-nowrap px-5 py-3 text-ink/40">--</td>;
+  if (!uplift) return <TD className="whitespace-nowrap text-ink/40">--</TD>;
   return (
-    <td className="whitespace-nowrap px-5 py-3">
+    <TD className="whitespace-nowrap">
       <div className={`font-semibold ${toneClass(uplift.uplift)}`}>{formatValue(uplift.uplift)}</div>
       <div className="text-xs text-ink/45">{formatSignedDecimal(uplift.upliftPercent)}%</div>
-    </td>
+    </TD>
   );
 }
 

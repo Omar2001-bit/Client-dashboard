@@ -9,6 +9,7 @@ import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
+import { Alert } from "@/components/ui/Alert";
 import { CheckCircle } from "lucide-react";
 
 export function SetPasswordPage() {
@@ -51,7 +52,7 @@ export function SetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7fafb] flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="p-3 bg-ink rounded-2xl mb-4 text-brand-500">
@@ -61,12 +62,12 @@ export function SetPasswordPage() {
           <p className="text-ink/50 text-sm mt-1">Welcome! Choose a password to access your dashboard.</p>
         </div>
 
-        <div className="bg-white rounded-brand border border-ink/10 shadow-[0_1px_3px_rgba(14,28,38,0.04)] p-6">
+        <div className="bg-white rounded-brand border border-ink/10 shadow-card p-6">
           {done ? (
             <div className="text-center space-y-3">
-              <CheckCircle className="h-10 w-10 text-green-500 mx-auto" />
-              <p className="font-medium text-gray-900">All set!</p>
-              <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
+              <CheckCircle className="h-10 w-10 text-brand-600 mx-auto" />
+              <p className="font-medium text-ink">All set!</p>
+              <p className="text-sm text-ink/50">Redirecting to your dashboard...</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -93,7 +94,7 @@ export function SetPasswordPage() {
                 onChange={(e) => setConfirm(e.target.value)}
                 required
               />
-              {error && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
+              {error && <Alert tone="danger">{error}</Alert>}
               <Button type="submit" className="w-full" size="lg" loading={loading}>
                 Set password &amp; sign in
               </Button>

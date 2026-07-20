@@ -45,7 +45,7 @@ export function TimelineViewer({
             {clientName && <h1 className="text-2xl font-bold text-ink">{clientName}</h1>}
             <p className="mt-1 text-sm text-ink/50">Built by the admin for the full engagement period.</p>
           </div>
-          <div className="rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink/60 shadow-[0_1px_3px_rgba(14,28,38,0.04)]">
+          <div className="rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink/60 shadow-[0_1px_3px_rgba(22,42,61,0.04)]">
             <div className="flex items-center gap-2 font-medium text-ink">
               <CalendarDays className="h-4 w-4 text-brand-700" />
               {formatTimelineDate(contractStartDate)}

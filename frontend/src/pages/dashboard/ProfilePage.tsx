@@ -4,6 +4,7 @@ import { updatePassword } from "firebase/auth";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Alert } from "@/components/ui/Alert";
 import { auth } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 
@@ -46,13 +47,13 @@ export function ProfilePage() {
   return (
     <div className="max-w-2xl p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-        <p className="mt-1 text-sm text-gray-500">{user?.email}</p>
+        <h1 className="text-2xl font-bold text-ink">Profile</h1>
+        <p className="mt-1 text-sm text-ink/50">{user?.email}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-gray-900">Change Password</h2>
+          <h2 className="font-semibold text-ink">Change Password</h2>
         </CardHeader>
         <CardBody>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -70,7 +71,7 @@ export function ProfilePage() {
               onChange={(event) => setConfirm(event.target.value)}
               required
             />
-            {message && <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">{message}</p>}
+            {message && <Alert tone="info">{message}</Alert>}
             <Button type="submit" loading={saving}>Update Password</Button>
           </form>
         </CardBody>

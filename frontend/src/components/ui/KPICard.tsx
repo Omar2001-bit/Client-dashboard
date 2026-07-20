@@ -1,5 +1,5 @@
-import { clsx } from "clsx";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 interface Props {
   title: string;
@@ -8,13 +8,14 @@ interface Props {
   deltaPositive?: boolean;
   note?: string;
   icon?: ReactNode;
+  /** @deprecated not rendered — kept for API compatibility. */
   sparkline?: number[];
   loading?: boolean;
 }
 
 export function KPICard({ title, value, delta, deltaPositive, note, icon, loading }: Props) {
   return (
-    <div className="bg-white rounded-brand border border-ink/10 shadow-[0_1px_3px_rgba(14,28,38,0.04)] p-6 transition-shadow hover:shadow-[0_4px_12px_rgba(14,28,38,0.06)]">
+    <div className="bg-white rounded-brand border border-ink/10 shadow-card p-6 transition-shadow hover:shadow-card-hover">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-ink/50">{title}</p>
         {icon && <div className="p-2 bg-brand-100 rounded-xl text-ink">{icon}</div>}
@@ -29,12 +30,12 @@ export function KPICard({ title, value, delta, deltaPositive, note, icon, loadin
           <p className="text-3xl font-bold text-ink tracking-tight">{value}</p>
           {delta && (
             <p
-              className={clsx(
+              className={cn(
                 "mt-1 text-sm font-medium",
                 deltaPositive ? "text-brand-700" : "text-red-600"
               )}
             >
-              {deltaPositive ? "\u25B2" : "\u25BC"} {delta}
+              {deltaPositive ? "▲" : "▼"} {delta}
             </p>
           )}
           {note && <p className="mt-1 text-sm text-ink/50">{note}</p>}

@@ -1,4 +1,13 @@
 import type { Timestamp } from "firebase/firestore";
+import type {
+  ChartType as Ga4ChartType,
+  DateRangeSel as Ga4DateRangeSel,
+  CompareSel as Ga4CompareSel,
+  FilterClause as Ga4FilterClause,
+  ColorPeriod as Ga4ColorPeriod,
+  FunnelConfig as Ga4FunnelConfig,
+  ReportLayout as Ga4ReportLayout,
+} from "@/lib/ga4Reports/types";
 
 export type UserRole = "admin" | "executiveAdmin" | "client";
 
@@ -215,10 +224,88 @@ export interface DashboardSettings {
   roiNodeCount?: number;
   experimentOverrides?: Record<string, ExperimentOverride>;
   manualExperiments?: ManualExperiment[];
+  auditTrackingEnabled?: boolean;
+  ga4ReportsEnabled?: boolean;
 }
 
 export interface ClientPreferences {
   excludedExperimentIds?: string[];
+}
+
+export type AuditFindingTool = "GA4" | "GTM" | "Google Search Console" | "Shopify" | "Behavioral Tool";
+export type AuditSeverity = "Correct" | "Unable to Verify" | "Critical" | "High" | "Action Needed";
+export type FixProgressStatus = "unreviewed" | "fixed" | "notfixed";
+
+export interface AuditFindingDoc {
+  // Identity / provenance — immutable after import
+  id: string;
+  row: string;
+  sourceRow: string;
+  sourceTab: string;
+  tool: AuditFindingTool;
+  issueId: string;
+
+  // Audit classification — imported once
+  auditStatus: AuditSeverity;
+  manualReview: boolean;
+  isCorrectRow: boolean;
+  isChecklistRow: boolean;
+
+  // Content — fields marked ADMIN-ONLY are never rendered for the client role
+  issue: string;
+  businessIssue: string;
+  summary: string;
+  detail: string;
+  businessDetail: string;
+  technicalExplanation?: string;
+  fix: string; // ADMIN-ONLY
+  businessFix: string; // ADMIN-ONLY
+  verify: string; // ADMIN-ONLY
+  businessVerify: string; // ADMIN-ONLY
+  docs?: string; // ADMIN-ONLY
+  owner?: string; // ADMIN-ONLY (routing)
+  qaOutcome?: string; // ADMIN-ONLY (routing)
+  reviewStatus?: string; // ADMIN-ONLY (routing)
+  routingNote?: string; // ADMIN-ONLY (routing)
+  evidenceLink?: string; // ADMIN-ONLY (routing)
+
+  // Fix-progress — mutable, admin-write-only, client read-only
+  progressStatus: FixProgressStatus;
+  note: string;
+  deleted: boolean;
+  deletedAt: Timestamp | null;
+  progressUpdatedAt: Timestamp | null;
+  progressUpdatedBy: string | null;
+
+  // Import bookkeeping
+  importedAt: Timestamp;
+  importBatchId: string;
+  legacyProgressMigrated: boolean;
+  legacyUpdatedAtIso?: string;
+}
+
+// A saved custom GA4 report ("Analytics Reports" feature), ported from GA4-simply-layer.
+// One doc per report at clients/{clientId}/ga4Reports/{reportId} — clientId is implicit
+// in the path, not a field here. Admin-write / admin-or-owning-client-read, same as every
+// other per-client collection (see firestore.rules).
+export interface Ga4ReportDoc {
+  id: string;
+  name: string;
+  description?: string;
+  group?: string; // free-text grouping label on the mega dashboard
+  property: string; // "properties/123..."
+  dimensions: string[]; // 0-9 GA4 dimension apiNames; [] = totals only
+  metrics: string[]; // 1-10 GA4 metric apiNames (real or virtual event:/convu:/convs: names)
+  chartType: Ga4ChartType;
+  rangeA: Ga4DateRangeSel;
+  rangeB: Ga4CompareSel;
+  filters?: Ga4FilterClause[];
+  colorPeriods?: Ga4ColorPeriod[];
+  funnels?: Ga4FunnelConfig[];
+  limit: number;
+  layout?: Ga4ReportLayout;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface TimelinePhase {

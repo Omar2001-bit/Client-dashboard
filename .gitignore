@@ -11,6 +11,7 @@ functions/lib/
 functions/.env.local
 server/.env.local
 functions/serviceAccountKey.json
+functions/serviceAccountKey.*.json
 functions/*.json.key
 .env.local
 

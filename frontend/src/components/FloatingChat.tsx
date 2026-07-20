@@ -148,7 +148,7 @@ function ChatMessages({
             <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${
-                  isMe ? "bg-brand-500 text-ink" : "bg-ink/5 text-ink"
+                  isMe ? "bg-brand-500 text-ink-deep" : "bg-ink/5 text-ink"
                 }`}
               >
                 {!isMe && (
@@ -183,7 +183,7 @@ function ChatMessages({
           disabled={!text.trim() || sending}
           className="h-9 w-9 rounded-xl bg-brand-500 flex items-center justify-center hover:bg-brand-400 transition-colors disabled:opacity-40 shrink-0"
         >
-          <Send className="h-4 w-4 text-ink" />
+          <Send className="h-4 w-4 text-ink-deep" />
         </button>
       </div>
     </>
@@ -352,9 +352,9 @@ export function FloatingChat() {
         className="h-[52px] w-[52px] rounded-full bg-brand-500 shadow-lg flex items-center justify-center hover:bg-brand-400 active:scale-95 transition-all relative"
       >
         {open ? (
-          <X className="h-5 w-5 text-ink" />
+          <X className="h-5 w-5 text-ink-deep" />
         ) : (
-          <MessageSquare className="h-5 w-5 text-ink" />
+          <MessageSquare className="h-5 w-5 text-ink-deep" />
         )}
         {!open && unread > 0 && (
           <span className="absolute -top-1 -right-1 h-5 min-w-[20px] rounded-full bg-red-500 text-white text-[11px] flex items-center justify-center font-bold px-1.5">

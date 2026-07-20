@@ -4,7 +4,7 @@ import { ArrowLeft, MapPin, Users, ExternalLink, FileText, EyeOff, Eye, StickyNo
 import { track } from "@/lib/activityTracker";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { StatusBadge, Alert, Table, THead, TBody, TR, TH, TD } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDashboardSettings, useClientPreferences } from "@/hooks/useDashboardSettings";
@@ -110,10 +110,9 @@ export function ExperimentDetailPage() {
 
       {/* Admin notes */}
       {override?.notes && (
-        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <StickyNote className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800">{override.notes}</p>
-        </div>
+        <Alert tone="warning" icon={<StickyNote className="h-4 w-4" />}>
+          {override.notes}
+        </Alert>
       )}
 
       <ExperimentDetailsCard experiment={experiment} />
@@ -124,38 +123,38 @@ export function ExperimentDetailPage() {
         </CardHeader>
         <CardBody className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-ink/10 bg-ink/[0.02] text-left text-xs uppercase tracking-wide text-ink/50">
-                  <th className="px-6 py-3">Metric</th>
-                  <th className="px-6 py-3">Original</th>
-                  <th className="px-6 py-3">Best variation</th>
-                  <th className="px-6 py-3">Uplift</th>
-                  <th className="px-6 py-3">Uplift %</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <THead>
+                <TR className="bg-ink/[0.02] hover:bg-transparent">
+                  <TH className="px-6">Metric</TH>
+                  <TH className="px-6">Original</TH>
+                  <TH className="px-6">Best variation</TH>
+                  <TH className="px-6">Uplift</TH>
+                  <TH className="px-6">Uplift %</TH>
+                </TR>
+              </THead>
+              <TBody>
                 {metrics.map((metric) => {
                   const uplift = experiment.uplifts?.[metric.key];
                   return (
-                    <tr key={metric.key} className="border-b border-ink/5">
-                      <td className="px-6 py-4 font-medium text-ink">{metric.label}</td>
-                      <td className="px-6 py-4 text-ink/60">{formatMetric(metric.key, uplift?.original ?? 0, money, rpvMoney, number)}</td>
-                      <td className="px-6 py-4 text-ink/60">
+                    <TR key={metric.key}>
+                      <TD className="px-6 py-4 font-medium text-ink">{metric.label}</TD>
+                      <TD className="px-6 py-4 text-ink/60">{formatMetric(metric.key, uplift?.original ?? 0, money, rpvMoney, number)}</TD>
+                      <TD className="px-6 py-4 text-ink/60">
                         <div>{formatMetric(metric.key, uplift?.bestVariation ?? 0, money, rpvMoney, number)}</div>
                         {uplift?.bestVariationName && <div className="text-xs text-ink/40">{uplift.bestVariationName}</div>}
-                      </td>
-                      <td className={`px-6 py-4 font-semibold ${toneClass(uplift?.uplift ?? 0)}`}>
+                      </TD>
+                      <TD className={`px-6 py-4 font-semibold ${toneClass(uplift?.uplift ?? 0)}`}>
                         {formatMetricUplift(metric.key, uplift, money, rpvMoney, number)}
-                      </td>
-                      <td className={`px-6 py-4 font-semibold ${toneClass(uplift?.uplift ?? 0)}`}>
+                      </TD>
+                      <TD className={`px-6 py-4 font-semibold ${toneClass(uplift?.uplift ?? 0)}`}>
                         {formatSignedDecimal(uplift?.upliftPercent ?? 0)}%
-                      </td>
-                    </tr>
+                      </TD>
+                    </TR>
                   );
                 })}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
         </CardBody>
       </Card>
@@ -166,35 +165,35 @@ export function ExperimentDetailPage() {
         </CardHeader>
         <CardBody className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-ink/10 bg-ink/[0.02] text-left text-xs uppercase tracking-wide text-ink/50">
-                  <th className="px-6 py-3">Variation</th>
-                  <th className="px-6 py-3">Revenue</th>
-                  <th className="px-6 py-3">RPV</th>
-                  <th className="px-6 py-3">Purchases</th>
-                  <th className="px-6 py-3">Products</th>
-                  <th className="px-6 py-3">CVR</th>
-                  <th className="px-6 py-3">AOV</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <THead>
+                <TR className="bg-ink/[0.02] hover:bg-transparent">
+                  <TH className="px-6">Variation</TH>
+                  <TH className="px-6">Revenue</TH>
+                  <TH className="px-6">RPV</TH>
+                  <TH className="px-6">Purchases</TH>
+                  <TH className="px-6">Products</TH>
+                  <TH className="px-6">CVR</TH>
+                  <TH className="px-6">AOV</TH>
+                </TR>
+              </THead>
+              <TBody>
                 {(experiment.variants ?? []).map((variant) => (
-                  <tr key={variant.id} className="border-b border-ink/5">
-                    <td className="px-6 py-4 font-medium text-ink">
+                  <TR key={variant.id}>
+                    <TD className="px-6 py-4 font-medium text-ink">
                       <div>{variant.name}</div>
                       {variant.isOriginal && <div className="text-xs text-ink/40">Original</div>}
-                    </td>
-                    <td className="px-6 py-4 text-ink/60">{money.format(variant.revenue)}</td>
-                    <td className="px-6 py-4 text-ink/60">{rpvMoney.format(variant.rpv)}</td>
-                    <td className="px-6 py-4 text-ink/60">{number.format(variant.transactions)}</td>
-                    <td className="px-6 py-4 text-ink/60">{number.format(variant.products)}</td>
-                    <td className="px-6 py-4 text-ink/60">{formatPlainDecimal(variant.cvr)}%</td>
-                    <td className="px-6 py-4 text-ink/60">{rpvMoney.format(variant.aov)}</td>
-                  </tr>
+                    </TD>
+                    <TD className="px-6 py-4 text-ink/60">{money.format(variant.revenue)}</TD>
+                    <TD className="px-6 py-4 text-ink/60">{rpvMoney.format(variant.rpv)}</TD>
+                    <TD className="px-6 py-4 text-ink/60">{number.format(variant.transactions)}</TD>
+                    <TD className="px-6 py-4 text-ink/60">{number.format(variant.products)}</TD>
+                    <TD className="px-6 py-4 text-ink/60">{formatPlainDecimal(variant.cvr)}%</TD>
+                    <TD className="px-6 py-4 text-ink/60">{rpvMoney.format(variant.aov)}</TD>
+                  </TR>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
           {(experiment.variants ?? []).length === 0 && (
             <div className="px-6 py-10 text-center text-sm text-ink/50">No variation report has been synced yet.</div>
@@ -219,28 +218,28 @@ export function ExperimentDetailPage() {
               <CardBody className="p-0">
                 {goal.stats && goal.stats.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-ink/10 text-left text-xs uppercase tracking-wide text-ink/50">
-                          <th className="px-6 py-2">Variation</th>
-                          <th className="px-6 py-2">Visitors</th>
-                          <th className="px-6 py-2">Conversions</th>
-                          <th className="px-6 py-2">CVR</th>
-                          <th className="px-6 py-2">Revenue</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <THead>
+                        <TR className="hover:bg-transparent">
+                          <TH className="px-6 py-2">Variation</TH>
+                          <TH className="px-6 py-2">Visitors</TH>
+                          <TH className="px-6 py-2">Conversions</TH>
+                          <TH className="px-6 py-2">CVR</TH>
+                          <TH className="px-6 py-2">Revenue</TH>
+                        </TR>
+                      </THead>
+                      <TBody>
                         {goal.stats.map((stat) => (
-                          <tr key={stat.variationId} className="border-b border-ink/5 last:border-0">
-                            <td className="px-6 py-3 font-medium text-ink">{stat.variationName}</td>
-                            <td className="px-6 py-3 text-ink/60">{number.format(stat.visitors)}</td>
-                            <td className="px-6 py-3 text-ink/60">{number.format(stat.conversions)}</td>
-                            <td className="px-6 py-3 text-ink/60">{formatPlainDecimal(stat.conversionRate)}%</td>
-                            <td className="px-6 py-3 text-ink/60">{money.format(stat.revenue)}</td>
-                          </tr>
+                          <TR key={stat.variationId}>
+                            <TD className="px-6 py-3 font-medium text-ink">{stat.variationName}</TD>
+                            <TD className="px-6 py-3 text-ink/60">{number.format(stat.visitors)}</TD>
+                            <TD className="px-6 py-3 text-ink/60">{number.format(stat.conversions)}</TD>
+                            <TD className="px-6 py-3 text-ink/60">{formatPlainDecimal(stat.conversionRate)}%</TD>
+                            <TD className="px-6 py-3 text-ink/60">{money.format(stat.revenue)}</TD>
+                          </TR>
                         ))}
-                      </tbody>
-                    </table>
+                      </TBody>
+                    </Table>
                   </div>
                 ) : (
                   <div className="px-6 py-4 text-center text-sm text-ink/50">No variation stats available for this goal.</div>

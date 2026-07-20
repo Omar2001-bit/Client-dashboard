@@ -6,6 +6,7 @@ const { google } = require("googleapis");
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
+const ga4Reporting = require("./ga4Reporting");
 // Credentials: env vars on Render, local JSON files in development
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
@@ -87,6 +88,92 @@ async function requireAdmin(req, res, next) {
     return res.status(403).json({ error: "Admin access required" });
   } catch (err) {
     console.error("[auth] admin check failed:", err.message);
+    return res.status(401).json({ error: "Invalid auth token" });
+  }
+}
+
+// Allows admin OR the client who owns `getClientId(req)` — clientId is read only from the
+// verified token (or its Firestore-doc fallback), never trusted from the request body/query,
+// so a client-role caller can't widen access by just passing a different clientId.
+function requireClientOrAdminOwnership(getClientId) {
+  return async function (req, res, next) {
+    try {
+      const idToken = getAuthToken(req);
+      if (!idToken) return res.status(401).json({ error: "Missing auth token" });
+
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      if (decoded.role === "admin" || decoded.role === "executiveAdmin") {
+        req.user = decoded;
+        return next();
+      }
+
+      const requestedClientId = getClientId(req);
+      if (decoded.role === "client" && decoded.clientId && decoded.clientId === requestedClientId) {
+        req.user = decoded;
+        return next();
+      }
+
+      const userSnap = await admin.firestore().doc(`users/${decoded.uid}`).get();
+      const userData = userSnap.data();
+      if (userData?.role === "admin" || userData?.role === "executiveAdmin") {
+        req.user = decoded;
+        return next();
+      }
+      if (userData?.role === "client" && userData.clientId && userData.clientId === requestedClientId) {
+        req.user = decoded;
+        return next();
+      }
+
+      return res.status(403).json({ error: "Not authorized for this client" });
+    } catch (err) {
+      console.error("[auth] client-ownership check failed:", err.message);
+      return res.status(401).json({ error: "Invalid auth token" });
+    }
+  };
+}
+
+// One-off fix for /api/ga4/experiment-data, which historically took a bare `propertyId`
+// with no clientId at all (finding C4 — it had no auth check whatsoever). The caller's
+// clientId comes only from the verified token; the route then 403s unless that client's
+// own configured ga4PropertyId matches the propertyId being requested, so a client can
+// never pull another client's GA4 property through the shared service account.
+async function requireClientOwnsGA4Property(req, res, next) {
+  try {
+    const idToken = getAuthToken(req);
+    if (!idToken) return res.status(401).json({ error: "Missing auth token" });
+
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    if (decoded.role === "admin" || decoded.role === "executiveAdmin") {
+      req.user = decoded;
+      return next();
+    }
+
+    let clientId = decoded.role === "client" ? decoded.clientId : undefined;
+    let role = decoded.role;
+    if (!clientId) {
+      const userSnap = await admin.firestore().doc(`users/${decoded.uid}`).get();
+      const userData = userSnap.data();
+      role = userData?.role;
+      clientId = userData?.clientId;
+    }
+    if (role === "admin" || role === "executiveAdmin") {
+      req.user = decoded;
+      return next();
+    }
+    if (role !== "client" || !clientId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    const clientSnap = await admin.firestore().doc(`clients/${clientId}`).get();
+    const requestedPropertyId = String(req.body?.propertyId || "");
+    if (!clientSnap.exists || clientSnap.data()?.ga4PropertyId !== requestedPropertyId) {
+      return res.status(403).json({ error: "Not authorized for this GA4 property" });
+    }
+
+    req.user = decoded;
+    return next();
+  } catch (err) {
+    console.error("[auth] GA4 property ownership check failed:", err.message);
     return res.status(401).json({ error: "Invalid auth token" });
   }
 }
@@ -738,7 +825,7 @@ function parseConvertAudience(audience) {
   };
 }
 
-app.get("/api/ga4/properties", async (_req, res) => {
+app.get("/api/ga4/properties", requireAdmin, async (_req, res) => {
   try {
     const auth = getGA4Auth();
     const analyticsAdmin = google.analyticsadmin({ version: "v1alpha", auth });
@@ -763,7 +850,7 @@ app.get("/api/ga4/properties", async (_req, res) => {
 });
 
 // Body: { propertyId, experimentDates: { [experimentId]: { startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD"|"today" } } }
-app.post("/api/ga4/experiment-data", async (req, res) => {
+app.post("/api/ga4/experiment-data", requireClientOwnsGA4Property, async (req, res) => {
   const { propertyId, experimentDates = {} } = req.body ?? {};
   if (!propertyId) return res.status(400).json({ error: "propertyId required" });
   try {
@@ -878,6 +965,150 @@ app.post("/api/ga4/experiment-data", async (req, res) => {
     res.json({ experiments: results });
   } catch (err) {
     console.error("[ga4/experiment-data]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Analytics Reports (ported from GA4-simply-layer) ─────────────────────────
+// Data-fetching routes for the general-purpose GA4 report builder. Unlike the
+// experiment-scoped routes above, these never trust property/metrics/dimensions/filters
+// from the request body — the query is always rebuilt server-side from the client's own
+// stored clients/{clientId}/ga4Reports/{reportId} Firestore doc, so a client-role caller
+// editing the request can't redirect the query at another client's GA4 property.
+
+const PROPERTY_RE = /^properties\/\d+$/;
+const DIMENSION_RE = /^[A-Za-z0-9_:]+$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidResolvedRange(r) {
+  return !!r && typeof r === "object" && DATE_RE.test(r.startDate) && DATE_RE.test(r.endDate);
+}
+
+// Fixed trailing 28 days ending yesterday — matches the source app's autocomplete
+// behavior regardless of the report's own configured range (GA4 data lags ~1 day).
+function trailing28DayRange() {
+  const fmtDate = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const start = new Date(yesterday);
+  start.setDate(start.getDate() - 27);
+  return { startDate: fmtDate(start), endDate: fmtDate(yesterday) };
+}
+
+app.get("/api/ga4-reports/metadata", requireAdmin, async (req, res) => {
+  const property = String(req.query.property || "");
+  if (!PROPERTY_RE.test(property)) return res.status(400).json({ error: "Invalid property" });
+  try {
+    const meta = await ga4Reporting.getGa4Metadata(getGA4Auth(), property);
+    res.json(meta);
+  } catch (err) {
+    console.error("[ga4-reports/metadata]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/ga4-reports/values", requireAdmin, async (req, res) => {
+  const property = String(req.query.property || "");
+  const dimension = String(req.query.dimension || "");
+  if (!PROPERTY_RE.test(property)) return res.status(400).json({ error: "Invalid property" });
+  if (!DIMENSION_RE.test(dimension)) return res.status(400).json({ error: "Invalid dimension" });
+  try {
+    const data = await ga4Reporting.runGa4Report(getGA4Auth(), {
+      property,
+      dimensions: [dimension],
+      metrics: ["eventCount"],
+      rangeA: trailing28DayRange(),
+      limit: 100,
+    });
+    const values = data.rows.map((r) => r.dim).filter(Boolean);
+    res.json({ values });
+  } catch (err) {
+    console.error("[ga4-reports/values]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// `metrics`/`dimensions` in the body are an OPTIONAL override — used by the metric
+// carousel to browse one metric at a time and let a single slide explore its own
+// breakdown dimension (Day/Week/Month, or a category) without editing/saving the report.
+// `property`/`filters`/`limit` always come from the stored doc regardless — only the
+// metric subset and dimension list are ever caller-influenced, and metrics must be a
+// subset of the report's own already-authorized metrics (never an arbitrary GA4 metric),
+// so this can't be used to read anything the report wasn't already configured to show.
+app.post("/api/ga4-reports/data", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
+  const clientId = String(req.body?.clientId || "");
+  const reportId = String(req.body?.reportId || "");
+  const rangeA = req.body?.rangeA;
+  const rangeB = req.body?.rangeB;
+  if (!clientId || !reportId) return res.status(400).json({ error: "clientId and reportId required" });
+  if (!isValidResolvedRange(rangeA)) return res.status(400).json({ error: "Invalid rangeA" });
+  if (rangeB !== null && rangeB !== undefined && !isValidResolvedRange(rangeB)) {
+    return res.status(400).json({ error: "Invalid rangeB" });
+  }
+  try {
+    const reportSnap = await admin.firestore().doc(`clients/${clientId}/ga4Reports/${reportId}`).get();
+    if (!reportSnap.exists) return res.status(404).json({ error: "Report not found" });
+    const report = reportSnap.data();
+
+    let metrics = report.metrics || [];
+    if (Array.isArray(req.body?.metrics)) {
+      const allowed = new Set(metrics);
+      const requested = req.body.metrics.filter((m) => typeof m === "string" && allowed.has(m));
+      if (requested.length > 0) metrics = requested;
+    }
+    const dimensions = Array.isArray(req.body?.dimensions)
+      ? req.body.dimensions.filter((d) => typeof d === "string").slice(0, 9)
+      : report.dimensions || [];
+
+    const data = await ga4Reporting.runGa4Report(getGA4Auth(), {
+      property: report.property,
+      dimensions,
+      metrics,
+      rangeA,
+      rangeB: rangeB || null,
+      filters: report.filters,
+      limit: report.limit,
+    });
+    res.json(data);
+  } catch (err) {
+    console.error("[ga4-reports/data]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/ga4-reports/funnel", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
+  const clientId = String(req.body?.clientId || "");
+  const reportId = String(req.body?.reportId || "");
+  const funnelId = String(req.body?.funnelId || "");
+  const rangeA = req.body?.rangeA;
+  const rangeB = req.body?.rangeB;
+  if (!clientId || !reportId || !funnelId) {
+    return res.status(400).json({ error: "clientId, reportId and funnelId required" });
+  }
+  if (!isValidResolvedRange(rangeA)) return res.status(400).json({ error: "Invalid rangeA" });
+  if (rangeB !== null && rangeB !== undefined && !isValidResolvedRange(rangeB)) {
+    return res.status(400).json({ error: "Invalid rangeB" });
+  }
+  try {
+    const reportSnap = await admin.firestore().doc(`clients/${clientId}/ga4Reports/${reportId}`).get();
+    if (!reportSnap.exists) return res.status(404).json({ error: "Report not found" });
+    const report = reportSnap.data();
+    const funnel = (report.funnels || []).find((f) => f.id === funnelId);
+    if (!funnel) return res.status(404).json({ error: "Funnel not found" });
+
+    const auth = getGA4Auth();
+    const [current, previous] = await Promise.all([
+      ga4Reporting.runGa4FunnelReport(auth, report.property, funnel, rangeA),
+      rangeB ? ga4Reporting.runGa4FunnelReport(auth, report.property, funnel, rangeB) : Promise.resolve(null),
+    ]);
+    res.json({ current, previous });
+  } catch (err) {
+    console.error("[ga4-reports/funnel]", err.message);
     res.status(500).json({ error: err.message });
   }
 });

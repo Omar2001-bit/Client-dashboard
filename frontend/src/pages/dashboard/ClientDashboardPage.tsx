@@ -19,6 +19,7 @@ import { track } from "@/lib/activityTracker";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { KPICard } from "@/components/ui/KPICard";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDashboardSettings, useClientPreferences } from "@/hooks/useDashboardSettings";
@@ -30,7 +31,7 @@ interface Props {
   preview?: boolean;
 }
 
-const chartColors = ["#6ae499", "#d94444", "#0e1c26"];
+const chartColors = ["#6ae499", "#d94444", "#162a3d"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function ClientDashboardPage({ preview = false }: Props) {
@@ -239,7 +240,7 @@ export function ClientDashboardPage({ preview = false }: Props) {
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:items-end">
-          <div data-tutorial="date-range" className="flex flex-wrap items-end gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink shadow-[0_1px_3px_rgba(14,28,38,0.04)]">
+          <div data-tutorial="date-range" className="flex flex-wrap items-end gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink shadow-[0_1px_3px_rgba(22,42,61,0.04)]">
             <label className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-ink/45">Start</span>
               <input
@@ -274,7 +275,7 @@ export function ClientDashboardPage({ preview = false }: Props) {
               Full Range
             </button>
           </div>
-          <label data-tutorial="exclude-losses" className="inline-flex cursor-pointer items-center gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm font-medium text-ink shadow-[0_1px_3px_rgba(14,28,38,0.04)]">
+          <label data-tutorial="exclude-losses" className="inline-flex cursor-pointer items-center gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm font-medium text-ink shadow-[0_1px_3px_rgba(22,42,61,0.04)]">
             <input
               type="checkbox"
               checked={excludeRevenueLosses}
@@ -403,7 +404,7 @@ export function ClientDashboardPage({ preview = false }: Props) {
                   dataKey="date" 
                   minTickGap={32} 
                   tickFormatter={(value) => formatDateLabel(String(value))} 
-                  stroke="#0e1c26"
+                  stroke="#162a3d"
                   strokeOpacity={0.5}
                   fontSize={12}
                   tickLine={false}
@@ -411,15 +412,15 @@ export function ClientDashboardPage({ preview = false }: Props) {
                 />
                 <YAxis
                   tickFormatter={(value) => number.format(Number(value))}
-                  stroke="#0e1c26"
+                  stroke="#162a3d"
                   strokeOpacity={0.5}
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                   width={70}
                 />
-                <ReferenceLine y={0} stroke="#0e1c26" strokeOpacity={0.2} />
-                <Tooltip content={() => null} cursor={{ stroke: "#0e1c26", strokeOpacity: 0.15, strokeDasharray: "4 4" }} />
+                <ReferenceLine y={0} stroke="#162a3d" strokeOpacity={0.2} />
+                <Tooltip content={() => null} cursor={{ stroke: "#162a3d", strokeOpacity: 0.15, strokeDasharray: "4 4" }} />
                 <Area
                   type="monotone"
                   dataKey="revenue"
@@ -427,7 +428,7 @@ export function ClientDashboardPage({ preview = false }: Props) {
                   strokeWidth={1}
                   fillOpacity={1}
                   fill="url(#revenueGradient)"
-                  activeDot={{ r: 3, strokeWidth: 0, fill: "#0e1c26" }}
+                  activeDot={{ r: 3, strokeWidth: 0, fill: "#162a3d" }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -493,22 +494,22 @@ export function ClientDashboardPage({ preview = false }: Props) {
         </CardHeader>
         <CardBody className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-ink/10 bg-ink/[0.02] text-left text-xs uppercase tracking-wide text-ink/50">
-                  <th className="px-6 py-3">Experiment</th>
-                  <th className="px-6 py-3">Revenue</th>
-                  <th className="px-6 py-3">RPV</th>
-                  <th className="px-6 py-3">Purchases</th>
-                  <th className="px-6 py-3">Products</th>
-                  <th className="px-6 py-3">CVR</th>
-                  <th className="px-6 py-3">AOV</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <THead>
+                <TR className="bg-ink/[0.02] hover:bg-transparent">
+                  <TH className="px-6">Experiment</TH>
+                  <TH className="px-6">Revenue</TH>
+                  <TH className="px-6">RPV</TH>
+                  <TH className="px-6">Purchases</TH>
+                  <TH className="px-6">Products</TH>
+                  <TH className="px-6">CVR</TH>
+                  <TH className="px-6">AOV</TH>
+                </TR>
+              </THead>
+              <TBody>
                 {recentExperiments.map(({ experiment, uplifts }) => (
-                  <tr key={experiment.id} className="border-b border-ink/5">
-                    <td className="whitespace-nowrap px-6 py-4 font-medium text-ink">
+                  <TR key={experiment.id}>
+                    <TD className="whitespace-nowrap px-6 py-4 font-medium text-ink">
                       <Link
                         to={`/dashboard/experiments/${experiment.id}`}
                         onClick={() => track({ type: "dashboard_experiment_click", metadata: { experimentId: experiment.id, experimentName: experiment.name } })}
@@ -516,17 +517,17 @@ export function ClientDashboardPage({ preview = false }: Props) {
                       >
                         {experiment.name}
                       </Link>
-                    </td>
+                    </TD>
                     <MetricCell uplifts={uplifts} metric="revenue" formatValue={(value) => formatSignedMoney(value, money)} />
                     <MetricCell uplifts={uplifts} metric="rpv" formatValue={(value) => formatSignedMoney(value, rpvMoney)} />
                     <MetricCell uplifts={uplifts} metric="purchases" formatValue={(value) => formatSignedNumber(value, number)} />
                     <MetricCell uplifts={uplifts} metric="products" formatValue={(value) => formatSignedNumber(value, number)} />
                     <MetricCell uplifts={uplifts} metric="cvr" formatValue={(value) => `${formatSignedDecimal(value)} pts`} />
                     <MetricCell uplifts={uplifts} metric="aov" formatValue={(value) => formatSignedMoney(value, rpvMoney)} />
-                  </tr>
+                  </TR>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
           {recentExperiments.length === 0 && (
             <div className="px-6 py-10 text-center text-sm text-ink/50">No experiment uplift data yet.</div>
@@ -547,7 +548,7 @@ function MetricCell({
   formatValue: (value: number) => string;
 }) {
   const value = uplifts?.[metric].uplift ?? 0;
-  return <td className={`whitespace-nowrap px-6 py-4 font-semibold ${toneClass(value)}`}>{formatValue(value)}</td>;
+  return <TD className={`whitespace-nowrap px-6 py-4 font-semibold ${toneClass(value)}`}>{formatValue(value)}</TD>;
 }
 
 function ROIReturnsPanel({

@@ -1,9 +1,20 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Search, EyeOff, Eye, StickyNote } from "lucide-react";
+import { Search, EyeOff, Eye, StickyNote } from "lucide-react";
 import { track } from "@/lib/activityTracker";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  StatusBadge,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  Pagination,
+  EmptyState,
+  Skeleton,
+} from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDashboardSettings, useClientPreferences } from "@/hooks/useDashboardSettings";
@@ -130,8 +141,8 @@ export function ExperimentListPage() {
       </div>
 
       <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
-        <div data-tutorial="experiments-table">
-          <table className="w-full table-fixed text-sm">
+        <div data-tutorial="experiments-table" className="overflow-x-auto">
+          <Table className="table-fixed">
             <colgroup>
               <col />
               <col className="w-[120px]" />
@@ -143,36 +154,33 @@ export function ExperimentListPage() {
               <col className="w-[120px]" />
               <col className="w-[140px]" />
             </colgroup>
-            <thead>
-              <tr className="border-b border-ink/10 bg-ink/[0.02] text-left text-xs uppercase tracking-wider text-ink/50">
-                <th className="px-5 py-3 font-semibold">Experiment</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold">Revenue</th>
-                <th className="px-5 py-3 font-semibold">RPV</th>
-                <th className="px-5 py-3 font-semibold">Purchases</th>
-                <th className="px-5 py-3 font-semibold">Products</th>
-                <th className="px-5 py-3 font-semibold">CVR</th>
-                <th className="px-5 py-3 font-semibold">AOV</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+            <THead>
+              <TR className="bg-ink/[0.02] hover:bg-transparent">
+                <TH>Experiment</TH>
+                <TH>Status</TH>
+                <TH>Revenue</TH>
+                <TH>RPV</TH>
+                <TH>Purchases</TH>
+                <TH>Products</TH>
+                <TH>CVR</TH>
+                <TH>AOV</TH>
+                <TH />
+              </TR>
+            </THead>
+            <TBody>
               {loading
                 ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                    <tr key={i} className="border-b border-ink/5">
-                      <td className="px-5 py-4" colSpan={9}>
-                        <div className="h-4 animate-pulse rounded bg-ink/5" />
-                      </td>
-                    </tr>
+                    <TR key={i} className="hover:bg-transparent">
+                      <TD colSpan={9}>
+                        <Skeleton className="h-4" />
+                      </TD>
+                    </TR>
                   ))
                 : experiments.map((experiment) => {
                     const isClientHidden = clientExcluded.has(experiment.id);
                     return (
-                      <tr
-                        key={experiment.id}
-                        className={`border-b border-ink/5 transition-colors hover:bg-ink/[0.02] ${isClientHidden ? "opacity-40" : ""}`}
-                      >
-                        <td className="px-5 py-3 font-medium text-ink">
+                      <TR key={experiment.id} className={isClientHidden ? "opacity-40" : ""}>
+                        <TD className="font-medium text-ink">
                           <div className="flex min-w-0 items-center gap-1.5">
                             <span className="truncate">{experiment.name}</span>
                             {getExperimentNote(experiment.id) && (
@@ -182,73 +190,61 @@ export function ExperimentListPage() {
                             )}
                           </div>
                           {isClientHidden && (
-                            <div className="text-[10px] text-ink/40 font-normal">Hidden</div>
+                            <div className="text-[10px] font-normal text-ink/40">Hidden</div>
                           )}
-                        </td>
-                        <td className="px-5 py-3">
+                        </TD>
+                        <TD>
                           <StatusBadge status={experiment.status} />
-                        </td>
+                        </TD>
                         <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
                         <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
                         <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
                         <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
                         <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
                         <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                        <td className="px-5 py-3 text-right">
+                        <TD className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               data-tutorial="experiments-eye"
                               onClick={() => handleToggle(experiment.id, experiment.name)}
                               disabled={toggling === experiment.id}
                               title={isClientHidden ? "Show in dashboard" : "Hide from dashboard"}
-                              className="text-ink/30 hover:text-ink/60 transition-colors"
+                              className="text-ink/30 transition-colors hover:text-ink/60"
                             >
                               {isClientHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                             </button>
                             <Link
                               to={`/dashboard/experiments/${experiment.id}`}
                               onClick={() => track({ type: "experiment_view", metadata: { experimentId: experiment.id, experimentName: experiment.name, button: "View detail" } })}
-                              className="text-xs font-semibold text-ink underline-offset-4 hover:text-brand-700 hover:underline whitespace-nowrap"
+                              className="whitespace-nowrap text-xs font-semibold text-ink underline-offset-4 hover:text-brand-700 hover:underline"
                             >
                               View detail
                             </Link>
                           </div>
-                        </td>
-                      </tr>
+                        </TD>
+                      </TR>
                     );
                   })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
 
         {!loading && filtered.length === 0 && (
-          <div className="px-6 py-12 text-center text-sm text-ink/50">No experiments have been synced yet.</div>
+          <EmptyState className="py-12" title="No experiments have been synced yet." />
         )}
 
         {!loading && filtered.length > 0 && (
-          <div className="flex items-center justify-between border-t border-ink/10 px-6 py-3">
-            <p className="text-xs text-ink/50">
-              Showing {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { const np = currentPage - 1; setPage(np); track({ type: "list_page_change", metadata: { page: np + 1 } }); }}
-                disabled={currentPage === 0}
-                className="rounded-xl border border-ink/15 p-1.5 text-ink/60 transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-xs font-semibold text-ink/70">
-                Page {currentPage + 1} of {totalPages}
-              </span>
-              <button
-                onClick={() => { const np = currentPage + 1; setPage(np); track({ type: "list_page_change", metadata: { page: np + 1 } }); }}
-                disabled={currentPage >= totalPages - 1}
-                className="rounded-xl border border-ink/15 p-1.5 text-ink/60 transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+          <div className="border-t border-ink/10 px-6 py-3">
+            <Pagination
+              page={currentPage + 1}
+              pageCount={totalPages}
+              total={filtered.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={(p) => {
+                setPage(p - 1);
+                track({ type: "list_page_change", metadata: { page: p } });
+              }}
+            />
           </div>
         )}
       </div>
@@ -260,12 +256,12 @@ function MetricCell({ experiment, metric, formatValue }: {
   experiment: ExperimentSummary; metric: ExperimentMetricKey; formatValue: (value: number) => string;
 }) {
   const uplift = experiment.uplifts?.[metric];
-  if (!uplift) return <td className="whitespace-nowrap px-5 py-3 text-ink/40">--</td>;
+  if (!uplift) return <TD className="whitespace-nowrap text-ink/40">--</TD>;
   return (
-    <td className="whitespace-nowrap px-5 py-3">
+    <TD className="whitespace-nowrap">
       <div className={`font-semibold ${toneClass(uplift.uplift)}`}>{formatValue(uplift.uplift)}</div>
       <div className="text-xs text-ink/45">{formatSignedDecimal(uplift.upliftPercent)}%</div>
-    </td>
+    </TD>
   );
 }
 

@@ -61,6 +61,24 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Audit findings: static import + fix-progress, merged one doc per finding.
+    // Admin: full read/write (import, mark fixed/not fixed, notes, delete/restore).
+    // Client: read-only for their own client's findings — field-level restriction
+    // (hiding fix/verify/docs/routing/notes) is enforced in the frontend, same as
+    // experimentOverrides.notes already is today.
+    match /clients/{clientId}/auditFindings/{findingId} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
+    // Analytics Reports (ported from GA4-simply-layer): saved custom GA4 report configs.
+    // Admin builds/manages reports per client; client reads their own client's reports —
+    // same shape as every other per-client collection.
+    match /clients/{clientId}/ga4Reports/{reportId} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
     // Sync metadata: last sync timestamp etc.
     match /clients/{clientId}/syncStatus/{document=**} {
       allow read: if isAdmin() || isClientOf(clientId);

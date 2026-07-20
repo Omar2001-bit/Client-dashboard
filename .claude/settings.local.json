@@ -38,7 +38,11 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Omar Maged\\\\Desktop\\\\New folder\" -Recurse -Directory)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(npx vite *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(awk -F'=' '{print $1}' frontend/.env)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./frontend/package.json'\\).scripts, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./functions/package.json'\\).scripts, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./server/package.json'\\).scripts, null, 2\\)\\)\")"
     ]
   },
   "enableAllProjectMcpServers": true,

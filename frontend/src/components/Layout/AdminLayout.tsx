@@ -26,7 +26,7 @@ export function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#f7fafb]">
+    <div className="min-h-screen flex bg-canvas">
       {/* Sidebar */}
       <aside className="w-64 bg-ink text-white flex flex-col">
         <div className="px-6 py-6 border-b border-white/10 flex items-center text-white">
@@ -41,7 +41,7 @@ export function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-brand-500 text-ink shadow-[0_0_0_1px_rgba(106,228,153,0.4)]"
+                    ? "bg-brand-500 text-ink-deep shadow-[0_0_0_1px_rgba(106,228,153,0.4)]"
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 }`
               }

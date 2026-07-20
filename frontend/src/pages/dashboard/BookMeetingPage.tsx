@@ -23,7 +23,7 @@ function MeetingOption({
       target="_blank"
       rel="noreferrer"
       onClick={() => track({ type: "meeting_type_selected", metadata: { meetingType: title } })}
-      className="group block rounded-3xl border border-ink/10 bg-white p-6 shadow-[0_12px_30px_rgba(14,28,38,0.06)] transition-transform hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(14,28,38,0.1)]"
+      className="group block rounded-3xl border border-ink/10 bg-white p-6 shadow-[0_12px_30px_rgba(22,42,61,0.06)] transition-transform hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(22,42,61,0.1)]"
     >
       <div className="flex items-start gap-4">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: accent }}>
@@ -46,7 +46,7 @@ export function BookMeetingPage() {
   return (
     <div className="p-8">
       <div className="mx-auto max-w-5xl space-y-8">
-        <div className="rounded-[2rem] border border-ink/10 bg-[radial-gradient(circle_at_top_left,_rgba(106,228,153,0.22),_transparent_34%),linear-gradient(135deg,_#f8fbfc_0%,_#ffffff_52%,_#f3f7fb_100%)] p-8 shadow-[0_12px_35px_rgba(14,28,38,0.05)]">
+        <div className="rounded-[2rem] border border-ink/10 bg-[radial-gradient(circle_at_top_left,_rgba(106,228,153,0.22),_transparent_34%),linear-gradient(135deg,_#f8fbfc_0%,_#ffffff_52%,_#f3f7fb_100%)] p-8 shadow-[0_12px_35px_rgba(22,42,61,0.05)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink/50 shadow-sm">

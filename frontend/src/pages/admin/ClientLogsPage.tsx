@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { collection, onSnapshot, orderBy, query, limit, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ArrowLeft, Activity, Eye, EyeOff, Search, Calendar, ToggleLeft, BarChart2, ArrowUpDown, MessageSquare, Clock, Globe, Users, Wifi, ExternalLink, ChevronRight, RefreshCw, Shield, LayoutDashboard, FlaskConical, Download, FileText, Play, SkipForward, X } from "lucide-react";
+import { ArrowLeft, Activity, Eye, EyeOff, Search, Calendar, ToggleLeft, BarChart2, ArrowUpDown, MessageSquare, Clock, Globe, Users, Wifi, ExternalLink, ChevronRight, RefreshCw, Shield, LayoutDashboard, FlaskConical, Download, FileText, Play, SkipForward, X, ListChecks, Filter } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
 import type { ClientDoc } from "@/types";
 import type { ActivityEventType } from "@/lib/activityTracker";
@@ -24,7 +24,7 @@ interface LogEntry {
 const EVENT_CONFIG: Record<ActivityEventType, { label: string; icon: React.ElementType; color: string; bg: string }> = {
   // Navigation
   page_view:                    { label: "Visited page",          icon: Globe,         color: "text-blue-600",   bg: "bg-blue-50" },
-  page_exit:                    { label: "Left page",             icon: Clock,         color: "text-slate-400",  bg: "bg-slate-50" },
+  page_exit:                    { label: "Left page",             icon: Clock,         color: "text-ink/40",  bg: "bg-ink/5" },
   // Dashboard
   date_range_change:            { label: "Changed date range",    icon: Calendar,      color: "text-teal-600",   bg: "bg-teal-50" },
   full_range_reset:             { label: "Reset to full range",   icon: RefreshCw,     color: "text-teal-500",   bg: "bg-teal-50" },
@@ -34,9 +34,12 @@ const EVENT_CONFIG: Record<ActivityEventType, { label: string; icon: React.Eleme
   // Experiment list
   experiment_view:              { label: "Opened experiment",     icon: FlaskConical,  color: "text-purple-600", bg: "bg-purple-50" },
   search:                       { label: "Searched",              icon: Search,        color: "text-amber-600",  bg: "bg-amber-50" },
-  sort_change:                  { label: "Changed sort order",    icon: ArrowUpDown,   color: "text-slate-600",  bg: "bg-slate-50" },
-  list_page_change:             { label: "Changed list page",     icon: ChevronRight,  color: "text-slate-500",  bg: "bg-slate-50" },
+  sort_change:                  { label: "Changed sort order",    icon: ArrowUpDown,   color: "text-ink/70",  bg: "bg-ink/5" },
+  list_page_change:             { label: "Changed list page",     icon: ChevronRight,  color: "text-ink/50",  bg: "bg-ink/5" },
   experiment_visibility_toggle: { label: "Toggled visibility",    icon: EyeOff,        color: "text-orange-500", bg: "bg-orange-50" },
+  // Audit findings
+  audit_finding_view:           { label: "Opened audit finding",  icon: ListChecks,    color: "text-purple-600", bg: "bg-purple-50" },
+  audit_filter_change:          { label: "Filtered audit findings", icon: Filter,      color: "text-ink/70",  bg: "bg-ink/5" },
   // Experiment detail
   variation_preview_click:      { label: "Opened variation preview", icon: ExternalLink, color: "text-blue-500", bg: "bg-blue-50" },
   experiment_detail_hide_toggle:{ label: "Toggled experiment hide", icon: EyeOff,      color: "text-orange-600", bg: "bg-orange-50" },
@@ -45,24 +48,24 @@ const EVENT_CONFIG: Record<ActivityEventType, { label: string; icon: React.Eleme
   // Meetings
   meeting_type_selected:        { label: "Opened meeting booking",icon: Calendar,      color: "text-emerald-600",bg: "bg-emerald-50" },
   // Profile
-  password_changed:             { label: "Changed password",      icon: Shield,        color: "text-slate-600",  bg: "bg-slate-50" },
+  password_changed:             { label: "Changed password",      icon: Shield,        color: "text-ink/70",  bg: "bg-ink/5" },
   // A/B testing hub
   ab_testing_view_selected:     { label: "Selected A/B view",     icon: LayoutDashboard,color: "text-indigo-500",bg: "bg-indigo-50" },
   // Floating chat
   chat_opened:                  { label: "Opened chat",            icon: MessageSquare, color: "text-brand-600", bg: "bg-brand-50" },
-  chat_closed:                  { label: "Closed chat",            icon: MessageSquare, color: "text-slate-400", bg: "bg-slate-50" },
+  chat_closed:                  { label: "Closed chat",            icon: MessageSquare, color: "text-ink/40", bg: "bg-ink/5" },
   chat_message_sent:            { label: "Sent chat message",      icon: MessageSquare, color: "text-green-600", bg: "bg-green-50" },
   // Timeline
   timeline_phase_selected:      { label: "Opened timeline phase",  icon: Calendar,      color: "text-blue-600",  bg: "bg-blue-50" },
   // Tab attention
-  tab_hidden:                   { label: "Switched away",          icon: EyeOff,        color: "text-slate-400", bg: "bg-slate-50" },
+  tab_hidden:                   { label: "Switched away",          icon: EyeOff,        color: "text-ink/40", bg: "bg-ink/5" },
   tab_visible:                  { label: "Came back",              icon: Eye,           color: "text-emerald-600",bg: "bg-emerald-50" },
   // Scroll depth
-  scroll_depth:                 { label: "Scrolled",               icon: ChevronRight,  color: "text-slate-500", bg: "bg-slate-50" },
+  scroll_depth:                 { label: "Scrolled",               icon: ChevronRight,  color: "text-ink/50", bg: "bg-ink/5" },
   // Chart
   chart_date_hover:             { label: "Inspected chart date",   icon: BarChart2,     color: "text-teal-600",  bg: "bg-teal-50" },
   // Back navigation
-  back_navigation:              { label: "Navigated back",         icon: ArrowLeft,     color: "text-slate-500", bg: "bg-slate-50" },
+  back_navigation:              { label: "Navigated back",         icon: ArrowLeft,     color: "text-ink/50", bg: "bg-ink/5" },
   // Tutorial
   tutorial_started:             { label: "Started tutorial",       icon: Play,          color: "text-brand-600", bg: "bg-brand-50" },
   tutorial_step_viewed:         { label: "Viewed tutorial step",   icon: Play,          color: "text-brand-500", bg: "bg-brand-50" },
@@ -414,15 +417,15 @@ function exportToPDF(logs: LogEntry[], client: ClientDoc) {
 <title>${client.name} — Activity Report</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:9pt;color:#0e1c26;background:#fff;padding:28px}
+  body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:9pt;color:#162a3d;background:#fff;padding:28px}
   /* Cover */
-  .cover{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid #0e1c26}
-  .cover h1{font-size:20pt;font-weight:800;letter-spacing:-0.02em;color:#0e1c26}
+  .cover{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid #162a3d}
+  .cover h1{font-size:20pt;font-weight:800;letter-spacing:-0.02em;color:#162a3d}
   .cover .sub{font-size:10pt;color:#64748b;margin-top:4px}
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
   .stat{background:#f8fafc;border-radius:8px;padding:12px 16px;border:1px solid #e2e8f0}
   .stat .lbl{font-size:6.5pt;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;margin-bottom:3px}
-  .stat .val{font-size:13pt;font-weight:800;color:#0e1c26}
+  .stat .val{font-size:13pt;font-weight:800;color:#162a3d}
   /* Section */
   h2{font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0}
   /* Summary table */
@@ -434,27 +437,27 @@ function exportToPDF(logs: LogEntry[], client: ClientDoc) {
   .bar-fill{height:100%;border-radius:3px}
   /* Event log */
   .etbl{width:100%;border-collapse:collapse}
-  .etbl thead th{background:#0e1c26;color:#fff;padding:7px 8px;text-align:left;font-size:7pt;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  .etbl thead th{background:#162a3d;color:#fff;padding:7px 8px;text-align:left;font-size:7pt;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
   .etbl tr.even td{background:#fafafa}
   .etbl tr.odd td{background:#fff}
   .etbl td{padding:8px 8px;border-bottom:1px solid #f1f5f9;vertical-align:top}
   .ts-cell{width:90px;min-width:90px}
   .type-cell{width:120px;min-width:120px}
   .row-num{font-size:6.5pt;color:#94a3b8;margin-bottom:3px}
-  .ts-time{font-size:8.5pt;font-weight:700;color:#0e1c26}
+  .ts-time{font-size:8.5pt;font-weight:700;color:#162a3d}
   .ts-date{font-size:7pt;color:#64748b}
   .ts-iso{font-size:5.5pt;color:#cbd5e1;font-family:monospace;margin-top:3px;word-break:break-all}
   .badge{display:inline-block;font-size:6pt;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:2px 5px;border-radius:3px;color:#fff;margin-bottom:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .page-title{font-size:7.5pt;font-weight:600;color:#0e1c26}
+  .page-title{font-size:7.5pt;font-weight:600;color:#162a3d}
   .page-path{font-size:6.5pt;color:#94a3b8;font-family:monospace;word-break:break-all}
-  .desc{font-size:8.5pt;color:#0e1c26;line-height:1.55;margin-bottom:5px}
+  .desc{font-size:8.5pt;color:#162a3d;line-height:1.55;margin-bottom:5px}
   .params{font-size:7.5pt;color:#64748b;line-height:1.7;word-break:break-word}
   .pk{font-weight:700;color:#94a3b8}
   .url{font-size:6pt;color:#94a3b8;font-family:monospace;margin-top:3px;word-break:break-all}
   @media print{
     @page{margin:10mm 8mm;size:A4 landscape}
     body{padding:0}
-    .etbl thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#0e1c26 !important;color:#fff !important}
+    .etbl thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#162a3d !important;color:#fff !important}
     .etbl tr.even td{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fafafa !important}
     .stat{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f8fafc !important}
     tr{page-break-inside:avoid}

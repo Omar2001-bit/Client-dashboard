@@ -10,8 +10,7 @@ import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { CreateClientFormData, GA4Property } from "@/types";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { fetchWithAuth } from "@/lib/apiClient";
 
 export function CreateClientPage() {
   const navigate = useNavigate();
@@ -45,7 +44,7 @@ export function CreateClientPage() {
     getDocs(query(collection(db, "users"), where("role", "==", "executiveAdmin")))
       .then((snap) => setExecutiveAdminExists(!snap.empty));
     setGa4Loading(true);
-    fetch(`${API_BASE}/api/ga4/properties`)
+    fetchWithAuth("/api/ga4/properties")
       .then((r) => r.json())
       .then((d) => setGa4Properties(d.properties ?? []))
       .catch(() => setGa4Properties([]))
@@ -127,8 +126,8 @@ export function CreateClientPage() {
     return (
       <div className="p-8 flex flex-col items-center justify-center min-h-96 space-y-3">
         <CheckCircle className="h-12 w-12 text-green-500" />
-        <p className="text-xl font-semibold text-gray-900">User created!</p>
-        <p className="text-gray-500 text-sm">Credentials and role saved. Redirecting...</p>
+        <p className="text-xl font-semibold text-ink">User created!</p>
+        <p className="text-ink/50 text-sm">Credentials and role saved. Redirecting...</p>
       </div>
     );
   }
@@ -136,23 +135,23 @@ export function CreateClientPage() {
   return (
     <div className="p-8 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/admin/clients" className="text-gray-400 hover:text-gray-600">
+        <Link to="/admin/clients" className="text-ink/40 hover:text-ink/70">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">New User</h1>
+        <h1 className="text-2xl font-bold text-ink">New User</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-800">Account Access</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-ink">Account Access</h2></CardHeader>
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Role</label>
+                <label className="block text-sm font-medium text-ink/80">Role</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as CreateClientFormData["role"] }))}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+                  className="block w-full rounded-lg border border-ink/15 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
                 >
                   <option value="client">Client</option>
                   <option value="admin">Admin</option>
@@ -182,7 +181,7 @@ export function CreateClientPage() {
 
         {form.role === "client" && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-800">Client Details</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-ink">Client Details</h2></CardHeader>
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input label="Company Name" value={form.clientName} onChange={set("clientName")} required />
@@ -206,7 +205,7 @@ export function CreateClientPage() {
                   required
                 />
               ) : (
-                <div className="rounded-lg border border-dashed border-gray-200 px-4 py-3 text-sm text-gray-500">
+                <div className="rounded-lg border border-dashed border-ink/10 px-4 py-3 text-sm text-ink/50">
                   Payment amount is restricted to executive admins.
                 </div>
               )}
@@ -225,7 +224,7 @@ export function CreateClientPage() {
 
         {form.role === "client" && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-800">Convert.com Credentials</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-ink">Convert.com Credentials</h2></CardHeader>
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input label="Account ID" value={form.convertAccountId} onChange={set("convertAccountId")} required />
@@ -253,18 +252,18 @@ export function CreateClientPage() {
 
         {form.role === "client" && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-800">GA4 Property</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-ink">GA4 Property</h2></CardHeader>
           <CardBody className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">GA4 Property</label>
+            <label className="block text-sm font-medium text-ink/80">GA4 Property</label>
             {ga4Loading ? (
-              <div className="h-9 animate-pulse rounded-lg bg-gray-100" />
+              <div className="h-9 animate-pulse rounded-lg bg-ink/10" />
             ) : ga4Properties.length === 0 ? (
-              <p className="text-sm text-gray-400">No GA4 properties found — server may be offline.</p>
+              <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
             ) : (
               <select
                 value={form.ga4PropertyId ?? ""}
                 onChange={(e) => setForm((p) => ({ ...p, ga4PropertyId: e.target.value }))}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+                className="block w-full rounded-lg border border-ink/15 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
               >
                 <option value="">— None (skip GA4) —</option>
                 {ga4Properties.map((p) => (
@@ -274,7 +273,7 @@ export function CreateClientPage() {
                 ))}
               </select>
             )}
-            <p className="text-xs text-gray-400">Links this client to a GA4 property for the GA4 Data View dashboard.</p>
+            <p className="text-xs text-ink/40">Links this client to a GA4 property for the GA4 Data View dashboard.</p>
           </CardBody>
         </Card>
         )}

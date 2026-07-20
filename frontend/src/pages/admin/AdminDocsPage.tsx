@@ -4,6 +4,7 @@ import {
   BookOpen, LayoutDashboard, Users, Activity, MessageSquare,
   Settings, ChevronRight, Play, Crown,
 } from "lucide-react";
+import { Button } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 
 interface DocSection {
@@ -349,13 +350,10 @@ export function AdminDocsPage() {
       <aside className="w-64 shrink-0 border-r border-ink/10 bg-white flex flex-col">
         <div className="px-5 py-6 border-b border-ink/10">
           <p className="text-[10px] font-bold uppercase tracking-widest text-ink/40 mb-3">Admin Documentation</p>
-          <button
-            onClick={onLaunchTutorial}
-            className="flex items-center gap-2 w-full rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-brand-400 transition-colors"
-          >
-            <Play className="h-4 w-4" />
+          <Button className="w-full" onClick={onLaunchTutorial}>
+            <Play className="mr-2 h-4 w-4" />
             Launch Tutorial
-          </button>
+          </Button>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {SECTIONS.map(({ id, icon: Icon, title, execAdminOnly }) => (

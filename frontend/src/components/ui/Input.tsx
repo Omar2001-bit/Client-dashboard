@@ -1,5 +1,5 @@
-import { clsx } from "clsx";
 import type { InputHTMLAttributes } from "react";
+import { cn } from "@/lib/cn";
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -18,7 +18,7 @@ export function Input({ label, error, hint, className, id, ...props }: Props) {
       )}
       <input
         id={inputId}
-        className={clsx(
+        className={cn(
           "block w-full rounded-xl border px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 transition-colors text-ink placeholder:text-ink/40",
           error
             ? "border-red-300 focus:border-red-400 focus:ring-red-200"

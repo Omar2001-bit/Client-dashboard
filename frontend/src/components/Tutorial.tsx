@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronRight, X, SkipForward } from "lucide-react";
+import { Button } from "@/components/ui";
 import type { TutorialStep, TutorialPosition } from "@/lib/tutorialSteps";
 
 interface Rect { top: number; left: number; width: number; height: number; }
@@ -107,21 +108,21 @@ export function Tutorial({ steps, currentStep, onNext, onSkipStep, onSkipAll }: 
       {/* Backdrop — 4 quadrants leaving the spotlight uncovered */}
       {spotlight ? (
         <>
-          <div onClick={onSkipAll} style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, spotlight.top), background: "rgba(14,28,38,0.72)", pointerEvents: "auto" }} />
-          <div onClick={onSkipAll} style={{ position: "fixed", top: spotlight.top + spotlight.height, left: 0, right: 0, bottom: 0, background: "rgba(14,28,38,0.72)", pointerEvents: "auto" }} />
-          <div onClick={onSkipAll} style={{ position: "fixed", top: spotlight.top, left: 0, width: Math.max(0, spotlight.left), height: spotlight.height, background: "rgba(14,28,38,0.72)", pointerEvents: "auto" }} />
-          <div onClick={onSkipAll} style={{ position: "fixed", top: spotlight.top, left: spotlight.left + spotlight.width, right: 0, height: spotlight.height, background: "rgba(14,28,38,0.72)", pointerEvents: "auto" }} />
+          <div onClick={onSkipAll} style={{ position: "fixed", top: 0, left: 0, right: 0, height: Math.max(0, spotlight.top), background: "rgba(22,42,61,0.72)", pointerEvents: "auto" }} />
+          <div onClick={onSkipAll} style={{ position: "fixed", top: spotlight.top + spotlight.height, left: 0, right: 0, bottom: 0, background: "rgba(22,42,61,0.72)", pointerEvents: "auto" }} />
+          <div onClick={onSkipAll} style={{ position: "fixed", top: spotlight.top, left: 0, width: Math.max(0, spotlight.left), height: spotlight.height, background: "rgba(22,42,61,0.72)", pointerEvents: "auto" }} />
+          <div onClick={onSkipAll} style={{ position: "fixed", top: spotlight.top, left: spotlight.left + spotlight.width, right: 0, height: spotlight.height, background: "rgba(22,42,61,0.72)", pointerEvents: "auto" }} />
           {/* Spotlight ring */}
           <div style={{ position: "fixed", top: spotlight.top, left: spotlight.left, width: spotlight.width, height: spotlight.height, border: "2px solid #6ae499", borderRadius: 10, boxShadow: "0 0 0 4px rgba(106,228,153,0.18), 0 0 20px rgba(106,228,153,0.12)", pointerEvents: "none" }} />
         </>
       ) : (
-        <div onClick={onSkipAll} style={{ position: "fixed", inset: 0, background: "rgba(14,28,38,0.72)", pointerEvents: "auto" }} />
+        <div onClick={onSkipAll} style={{ position: "fixed", inset: 0, background: "rgba(22,42,61,0.72)", pointerEvents: "auto" }} />
       )}
 
       {/* Tooltip card */}
       <div
         style={{ position: "fixed", zIndex: 99999, width: 340, pointerEvents: "auto", ...tooltipStyle }}
-        className="rounded-2xl border border-ink/10 bg-white shadow-[0_20px_60px_rgba(14,28,38,0.25)] p-5"
+        className="rounded-2xl border border-ink/10 bg-white shadow-[0_20px_60px_rgba(22,42,61,0.25)] p-5"
       >
         {/* Progress dots */}
         <div className="flex items-center gap-1 mb-4">
@@ -146,13 +147,10 @@ export function Tutorial({ steps, currentStep, onNext, onSkipStep, onSkipAll }: 
                 <SkipForward className="h-3.5 w-3.5" /> Skip
               </button>
             )}
-            <button
-              onClick={onNext}
-              className="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-ink/80 transition-colors"
-            >
+            <Button variant="dark" onClick={onNext}>
               {isLast ? "Finish 🎉" : "Next"}
-              {!isLast && <ChevronRight className="h-4 w-4" />}
-            </button>
+              {!isLast && <ChevronRight className="ml-1.5 h-4 w-4" />}
+            </Button>
           </div>
         </div>
       </div>

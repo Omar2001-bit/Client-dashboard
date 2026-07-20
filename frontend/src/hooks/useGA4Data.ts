@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
+import { fetchWithAuth } from "@/lib/apiClient";
 import type {
   GA4Experiment,
   GA4Variation,
@@ -10,8 +11,6 @@ import type {
   ExperimentSummary,
   VariantSummary,
 } from "@/types";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export interface GA4EnrichedExperiment {
   experimentId: string;
@@ -189,7 +188,7 @@ export function useGA4Data() {
         experimentDates[id] = { startDate: meta.startDate, endDate: meta.endDate };
       }
 
-      const resp = await fetch(`${API_BASE}/api/ga4/experiment-data`, {
+      const resp = await fetchWithAuth("/api/ga4/experiment-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ propertyId: ga4PropertyId, experimentDates }),

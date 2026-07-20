@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User, ListChecks } from "lucide-react";
 import { syncFromConvert, pullNewFromConvert, type SyncProgress } from "@/lib/convertSync";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ClientDoc, GA4Property } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { ClientDashboardSettingsPage } from "@/pages/admin/ClientDashboardSettingsPage";
 import { ClientTimelineEditorPage } from "@/pages/admin/ClientTimelineEditorPage";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { AdminAuditFindingsPage } from "@/pages/admin/AdminAuditFindingsPage";
+import { fetchWithAuth } from "@/lib/apiClient";
 
 export function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -33,13 +33,13 @@ export function ClientDetailPage() {
   const [pulling, setPulling] = useState(false);
   const [pullProgress, setPullProgress] = useState<SyncProgress | null>(null);
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<"overview" | "convert" | "settings" | "timeline">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "convert" | "settings" | "timeline" | "audit">("overview");
 
   // Allow the tutorial to switch tabs via ?tab= query param
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && ["overview", "convert", "settings", "timeline"].includes(tab)) {
-      setActiveTab(tab as "overview" | "convert" | "settings" | "timeline");
+    if (tab && ["overview", "convert", "settings", "timeline", "audit"].includes(tab)) {
+      setActiveTab(tab as "overview" | "convert" | "settings" | "timeline" | "audit");
     }
   }, [searchParams]);
   const [newPassword, setNewPassword] = useState("");
@@ -55,7 +55,7 @@ export function ClientDetailPage() {
       setLoading(false);
     });
     setGa4Loading(true);
-    fetch(`${API_BASE}/api/ga4/properties`)
+    fetchWithAuth("/api/ga4/properties")
       .then((r) => r.json())
       .then((d) => setGa4Properties(d.properties ?? []))
       .catch(() => setGa4Properties([]))
@@ -201,14 +201,15 @@ export function ClientDetailPage() {
     }
   };
 
-  if (loading) return <div className="p-8 text-gray-400">Loading...</div>;
-  if (!client) return <div className="p-8 text-gray-400">Client not found.</div>;
+  if (loading) return <div className="p-8 text-ink/40">Loading...</div>;
+  if (!client) return <div className="p-8 text-ink/40">Client not found.</div>;
 
   const TABS = [
     { key: "overview" as const,  label: "Overview",             icon: User },
     { key: "convert" as const,   label: "Convert Data Pulls",   icon: RefreshCw },
     { key: "settings" as const,  label: "Dashboard Settings",   icon: Settings2 },
     { key: "timeline" as const,  label: "Timeline Builder",     icon: CalendarDays },
+    { key: "audit" as const,     label: "Audit Findings",       icon: ListChecks },
   ];
 
   const SyncProgressBlock = ({ progress, label }: { progress: SyncProgress | null; label: string }) => {
@@ -241,11 +242,11 @@ export function ClientDetailPage() {
       {/* Header */}
       <div className="border-b border-ink/10 bg-white px-8 py-5 shrink-0">
         <div className="flex items-center gap-3">
-          <Link to="/admin/clients" className="text-gray-400 hover:text-gray-600">
+          <Link to="/admin/clients" className="text-ink/40 hover:text-ink/70">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
+            <h1 className="text-2xl font-bold text-ink">{client.name}</h1>
             <StatusBadge status={client.status} />
           </div>
         </div>
@@ -280,7 +281,7 @@ export function ClientDetailPage() {
             )}
             <form onSubmit={handleSave} className="space-y-6">
               <Card>
-                <CardHeader><h2 className="font-semibold text-gray-800">Client Details</h2></CardHeader>
+                <CardHeader><h2 className="font-semibold text-ink">Client Details</h2></CardHeader>
                 <CardBody className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <Input label="Company Name" value={client.name} onChange={(e) => setClient((p) => p ? { ...p, name: e.target.value } : p)} required />
@@ -295,13 +296,13 @@ export function ClientDetailPage() {
                     {currentRole === "executiveAdmin" ? (
                       <Input label="Client Paid Amount (USD)" type="number" value={client.servicePrice ?? client.agencyFee} onChange={(e) => setClient((p) => p ? { ...p, agencyFee: parseFloat(e.target.value), servicePrice: parseFloat(e.target.value) } : p)} hint="Stored in USD for ROI and reporting calculations." />
                     ) : (
-                      <div className="rounded-lg border border-dashed border-gray-200 px-4 py-3 text-sm text-gray-500">Payment amount is restricted to executive admins.</div>
+                      <div className="rounded-lg border border-dashed border-ink/10 px-4 py-3 text-sm text-ink/50">Payment amount is restricted to executive admins.</div>
                     )}
                     <Input label="Report Currency" value={client.currency} onChange={(e) => setClient((p) => p ? { ...p, currency: e.target.value } : p)} />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <select value={client.status} onChange={(e) => setClient((p) => p ? { ...p, status: e.target.value as "active" | "inactive" } : p)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-200">
+                    <label className="block text-sm font-medium text-ink/80">Status</label>
+                    <select value={client.status} onChange={(e) => setClient((p) => p ? { ...p, status: e.target.value as "active" | "inactive" } : p)} className="border border-ink/15 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-200">
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                     </select>
@@ -314,17 +315,17 @@ export function ClientDetailPage() {
             </form>
 
             <Card>
-              <CardHeader><h2 className="font-semibold text-gray-800">GA4 Property</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-ink">GA4 Property</h2></CardHeader>
               <CardBody className="space-y-3">
                 {ga4Loading ? (
-                  <div className="h-9 animate-pulse rounded-lg bg-gray-100" />
+                  <div className="h-9 animate-pulse rounded-lg bg-ink/10" />
                 ) : ga4Properties.length === 0 ? (
-                  <p className="text-sm text-gray-400">No GA4 properties found — server may be offline.</p>
+                  <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
                 ) : (
                   <select
                     value={client.ga4PropertyId ?? ""}
                     onChange={(e) => setClient((p) => p ? { ...p, ga4PropertyId: e.target.value || undefined } : p)}
-                    className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+                    className="block w-full rounded-lg border border-ink/15 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
                   >
                     <option value="">— None (disable GA4 view) —</option>
                     {ga4Properties.map((p) => (
@@ -334,12 +335,25 @@ export function ClientDetailPage() {
                     ))}
                   </select>
                 )}
-                <p className="text-xs text-gray-400">Select the GA4 property to link with this client's GA4 Data View. Save changes above to apply.</p>
+                <p className="text-xs text-ink/40">Select the GA4 property to link with this client's GA4 Data View. Save changes above to apply.</p>
               </CardBody>
             </Card>
 
             <Card>
-              <CardHeader><h2 className="font-semibold text-gray-800">Rotate Convert Credentials</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-ink">Analytics Reports</h2></CardHeader>
+              <CardBody className="space-y-3">
+                <p className="text-sm text-ink/50">
+                  Build custom GA4 reports for this client — arbitrary metric/dimension breakdowns, comparison
+                  periods, funnels, and rule-based insights. Separate from the GA4 experiment dashboard above.
+                </p>
+                <Link to={`/admin/clients/${clientId}/analytics-reports`}>
+                  <Button variant="secondary" size="sm">Manage reports</Button>
+                </Link>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader><h2 className="font-semibold text-ink">Rotate Convert Credentials</h2></CardHeader>
               <CardBody className="space-y-4">
                 <Input label="New Convert Key ID (leave blank to keep current)" type="password" value={newConvertKeyId} onChange={(e) => setNewConvertKeyId(e.target.value)} />
                 <Input label="New Convert Key Secret (leave blank to keep current)" type="password" value={newConvertKeySecret} onChange={(e) => setNewConvertKeySecret(e.target.value)} />
@@ -348,21 +362,21 @@ export function ClientDetailPage() {
             </Card>
 
             <Card>
-              <CardHeader><h2 className="font-semibold text-gray-800">Password Management</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-ink">Password Management</h2></CardHeader>
               <CardBody className="space-y-5">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Send password reset email</p>
-                  <p className="text-xs text-gray-500">Sends a reset link to the client's login email.</p>
+                  <p className="text-sm font-medium text-ink/80">Send password reset email</p>
+                  <p className="text-xs text-ink/50">Sends a reset link to the client's login email.</p>
                   <Button variant="secondary" size="sm" onClick={handleSendResetEmail} loading={passwordResetting}>Send reset email</Button>
                 </div>
-                <div className="border-t border-gray-100" />
+                <div className="border-t border-ink/10" />
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Set a new password directly</p>
-                  <p className="text-xs text-gray-500">Generate or type a password, then share it with the client.</p>
+                  <p className="text-sm font-medium text-ink/80">Set a new password directly</p>
+                  <p className="text-xs text-ink/50">Generate or type a password, then share it with the client.</p>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter or generate a new password…" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-brand-200" />
-                      <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter or generate a new password…" className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-brand-200" />
+                      <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink/40 hover:text-ink/70">
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -440,6 +454,13 @@ export function ClientDetailPage() {
         {activeTab === "timeline" && (
           <div data-tutorial="admin-client-timeline">
             <ClientTimelineEditorPage embedded />
+          </div>
+        )}
+
+        {/* ── Audit Findings ───────────────────────────────────────────────── */}
+        {activeTab === "audit" && (
+          <div data-tutorial="admin-client-audit">
+            <AdminAuditFindingsPage />
           </div>
         )}
 

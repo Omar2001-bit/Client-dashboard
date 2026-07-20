@@ -1,37 +1,53 @@
 /** @type {import('tailwindcss').Config} */
+import { brand, ink, palette, shadows, radii } from "./src/theme/tokens.js";
+
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Optimizers — pastel green primary
-        brand: {
-          50: "#f0fcf3",
-          100: "#dcf9e3",
-          200: "#bbf2c7",
-          300: "#9eecae",
-          400: "#83e8a4",
-          500: "#6ae499", // brand primary
-          600: "#4dd083",
-          700: "#3ab36c",
-          800: "#308d56",
-          900: "#235b3c",
-        },
-        // Optimizers — deep navy dark backgrounds
-        ink: {
-          DEFAULT: "#0e1c26",
-          deep: "#020601",
-          800: "#162a37",
-          700: "#1f3a4a",
-        },
+        brand, // Pastel Green ramp (500 = #6ae499)
+        ink, // Big Stone (DEFAULT) → Black Forest (deep), the brand darks
+        canvas: palette.canvas, // #f7fafb page background
       },
       fontFamily: {
+        // Sora — the brand's English typeface (loaded via index.css @import + index.html preconnect)
         sans: ["Sora", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["Sora", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       borderRadius: {
-        // 16px brand radius for cards
-        brand: "1rem",
+        brand: radii.brand, // 16px brand radius for cards
+      },
+      boxShadow: {
+        card: shadows.card,
+        "card-hover": shadows["card-hover"],
+        pop: shadows.pop,
+        overlay: shadows.overlay,
+      },
+      keyframes: {
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "pop-in": {
+          from: { opacity: "0", transform: "scale(0.96)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        "rise-in": {
+          from: { opacity: "0", transform: "translateY(6px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "check-pop": {
+          "0%": { transform: "scale(0)" },
+          "60%": { transform: "scale(1.15)" },
+          "100%": { transform: "scale(1)" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 150ms ease-out",
+        "pop-in": "pop-in 120ms ease-out",
+        "rise-in": "rise-in 200ms ease-out",
+        "check-pop": "check-pop 200ms ease-out",
       },
     },
   },

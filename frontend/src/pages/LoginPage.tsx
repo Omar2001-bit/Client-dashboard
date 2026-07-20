@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
+import { Alert } from "@/components/ui/Alert";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -41,7 +42,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7fafb] flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="p-3 bg-ink rounded-2xl mb-4 text-brand-500">
@@ -51,7 +52,7 @@ export function LoginPage() {
           <p className="text-ink/50 text-sm mt-1">Sign in to your dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-brand border border-ink/10 shadow-[0_1px_3px_rgba(14,28,38,0.04)] p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-brand border border-ink/10 shadow-card p-6 space-y-4">
           <Input
             label="Email"
             type="email"
@@ -68,9 +69,7 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-          )}
+          {error && <Alert tone="danger">{error}</Alert>}
           <Button type="submit" className="w-full" size="lg" loading={loading}>
             Sign in
           </Button>

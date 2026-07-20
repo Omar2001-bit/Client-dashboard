@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+/* Sora is loaded via <link rel="preconnect"> + <link> in index.html (faster than @import). */
 
 @tailwind base;
 @tailwind components;
@@ -6,17 +6,18 @@
 
 :root {
   font-family: 'Sora', ui-sans-serif, system-ui, sans-serif;
-  color: #0e1c26;
+  color: #162a3d; /* Big Stone — brand body text */
   background: #f7fafb;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Optimizers brand tokens */
-  --brand-primary: #6ae499;
-  --brand-dark: #0e1c26;
-  --brand-darkest: #020601;
+  /* Optimizers brand tokens (mirror of src/theme/tokens.js) */
+  --brand-primary: #6ae499; /* Pastel Green */
+  --brand-dark: #162a3d; /* Big Stone */
+  --brand-darkest: #020601; /* Black Forest */
+  --brand-canvas: #f7fafb;
 }
 
 body {
@@ -33,8 +34,21 @@ select {
   font: inherit;
 }
 
-/* Selection */
+/* Selection — Pastel Green fill with Black Forest text (brand rule: text on green) */
 ::selection {
   background: #6ae499;
-  color: #0e1c26;
+  color: #020601;
+}
+
+@layer utilities {
+  /*
+   * Accessible focus treatment used across the app (previously undefined → a no-op).
+   * Suppresses the default outline and shows a brand ring only for keyboard focus.
+   */
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    @apply ring-2 ring-brand-400 ring-offset-2 ring-offset-white;
+  }
 }
