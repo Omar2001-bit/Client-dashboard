@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOpen, User, BarChart3, ListChecks, LineChart } from "lucide-react";
+import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOpen, User, BarChart3, ListChecks, LineChart, ClipboardList } from "lucide-react";
 import { useLogout } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useTutorial } from "@/hooks/useTutorial";
@@ -8,6 +8,7 @@ import { Logo } from "@/components/ui/Logo";
 import { FloatingChat } from "@/components/FloatingChat";
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { useClickUpConnected } from "@/hooks/useClientTimeline";
 
 const baseNavItems = [
   { to: "/dashboard/ab-testing", icon: FlaskConical, label: "A/B Testing Results", end: true },
@@ -26,11 +27,13 @@ export function ClientLayout() {
   const { active, currentStep, steps, start, next, skipStep, skipAll } = useTutorial();
   const clientId = useAuthStore((s) => s.clientId);
   const { settings } = useDashboardSettings(clientId);
+  const clickUpConnected = useClickUpConnected(clientId);
 
   const navItems = [
     ...baseNavItems,
     ...(settings.auditTrackingEnabled ? [{ to: "/dashboard/audit-findings", icon: ListChecks, label: "Audit Findings" }] : []),
     ...(settings.ga4ReportsEnabled ? [{ to: "/dashboard/analytics-reports", icon: LineChart, label: "Analytics Reports" }] : []),
+    ...(clickUpConnected ? [{ to: "/dashboard/tasks", icon: ClipboardList, label: "Project Tasks" }] : []),
   ];
 
   const handleLogout = async () => {

@@ -323,11 +323,23 @@ export interface ClickUpWorkspace {
   name: string;
 }
 
+export interface ClickUpFolder {
+  id: string;
+  name: string;
+  spaceId?: string;
+  spaceName?: string;
+}
+
 export interface ClickUpTask {
   id: string;
   name: string;
   status?: string;
+  statusColor?: string | null;
+  description?: string;
+  startDate?: string | null;
   dueDate?: string;
+  dateCreated?: string | null;
+  dateClosed?: string | null;
   listId?: string;
   listName?: string;
   assigneeNames?: string[];
@@ -335,27 +347,33 @@ export interface ClickUpTask {
   parentId?: string | null;
 }
 
+export interface ClickUpList {
+  id: string;
+  name: string;
+}
+
+// A single shared personal API token (set once, org-wide) browses the agency's
+// own ClickUp workspace; each client's timeline is scoped to a workspace + an
+// optional folder within it (folders are typically named after the client).
 export interface ClickUpIntegration {
   connected?: boolean;
-  authorizedUserName?: string;
-  authorizedUserEmail?: string;
-  activeWorkspaceId?: string;
-  activeWorkspaceName?: string;
-  workspaces?: ClickUpWorkspace[];
+  workspaceId?: string | null;
+  workspaceName?: string;
+  folderId?: string | null;
+  folderName?: string | null;
   tasks?: ClickUpTask[];
+  lists?: ClickUpList[];
   taskAssignments?: Record<string, string>;
   lastSyncedAt?: string;
 }
 
-export interface ClickUpAppConfig {
-  clientId: string;
-  redirectUri: string;
-  clientSecret?: string;
-  hasSecret?: boolean;
-  source?: "firestore" | "env" | "";
+export interface ClickUpAccessConfig {
   configured?: boolean;
+  source?: "firestore" | "env" | "";
   updatedAt?: string;
   updatedBy?: string;
+  authorizedUserName?: string;
+  authorizedUserEmail?: string;
 }
 
 export interface ClientTimelineConfig {

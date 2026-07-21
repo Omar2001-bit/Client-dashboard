@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
+const axios = require("axios");
 const admin = require("firebase-admin");
 const { google } = require("googleapis");
 const fs = require("fs");
@@ -178,6 +179,43 @@ async function requireClientOwnsGA4Property(req, res, next) {
   }
 }
 
+// ── Encryption helpers (AES-256-GCM) ──────────────────────────────────────────
+// Ported verbatim from functions/src/lib/encryption.ts. Used for per-client
+// secrets (Convert credentials, ClickUp OAuth tokens) stored in Firestore.
+// Format: iv(hex):authTag(hex):ciphertext(hex).
+
+const ENCRYPTION_ALGORITHM = "aes-256-gcm";
+const ENCRYPTION_IV_LENGTH = 16;
+
+function getEncryptionKey() {
+  const hex = process.env.ENCRYPTION_KEY;
+  if (!hex || hex.length !== 64) {
+    throw new Error("ENCRYPTION_KEY must be a 32-byte (64 hex char) value");
+  }
+  return Buffer.from(hex, "hex");
+}
+
+function encrypt(plaintext) {
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(ENCRYPTION_IV_LENGTH);
+  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
+}
+
+function decrypt(ciphertext) {
+  const key = getEncryptionKey();
+  const [ivHex, authTagHex, dataHex] = ciphertext.split(":");
+  if (!ivHex || !authTagHex || !dataHex) throw new Error("Invalid ciphertext format");
+  const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
+  const data = Buffer.from(dataHex, "hex");
+  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+  return decipher.update(data) + decipher.final("utf8");
+}
+
 const GMAIL_USER = process.env.GMAIL_USER || "optimizerssupport@gmail.com";
 const SUPPORT_EMAIL = "omar@optimizers.agency";
 const CLICKUP_API_BASE = "https://api.clickup.com/api/v2";
@@ -326,8 +364,11 @@ function normalizeTask(task) {
     name: String(task.name ?? "Untitled task"),
     status: String(task.status?.status ?? task.status ?? ""),
     statusColor: task.status?.color ?? null,
+    description: String(task.description ?? ""),
     startDate: startDate ?? null,
     dueDate: dueDate ?? null,
+    dateCreated: normalizeDate(task.date_created) ?? null,
+    dateClosed: normalizeDate(task.date_closed) ?? null,
     listId: String(task.list?.id ?? task.list_id ?? ""),
     listName: String(task.list?.name ?? task.list_name ?? ""),
     assigneeNames: normalizeAssigneeNames(task.assignees),
@@ -539,6 +580,128 @@ app.get("/api/clickup/tasks", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[clickup/tasks]", err.message);
     res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// ── ClickUp -> client timeline sync ────────────────────────────────────────────
+// One shared personal token (above) browses the agency's own ClickUp workspace;
+// this route lets an admin pick a workspace (+ optional folder scope) and pull
+// a FLAT task list into a specific client's timeline config, matching the shape
+// the Timeline Builder / TimelineViewer UI already expects (each task, including
+// subtasks, independently assignable to a phase — so no tree-nesting here).
+
+// normalizeTask() leaves some optional fields (e.g. checklist item `assignee`)
+// as `undefined`, which is fine for a JSON response but Firestore rejects
+// `undefined` on write. Strip it recursively before persisting.
+function stripUndefinedForFirestore(value) {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(stripUndefinedForFirestore);
+  if (typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== undefined) out[k] = stripUndefinedForFirestore(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+async function fetchFlatClickUpTasksForClient(workspaceId, folderId) {
+  const flat = [];
+  const lists = [];
+  if (folderId) {
+    const listPayload = await fetchClickUp(`/folder/${encodeURIComponent(folderId)}/list`, { archived: false });
+    const folderLists = Array.isArray(listPayload.lists) ? listPayload.lists : [];
+    lists.push(
+      ...folderLists
+        .map((list) => ({ id: String(list.id ?? ""), name: String(list.name ?? "Untitled list") }))
+        .filter((list) => list.id)
+    );
+    await Promise.all(
+      folderLists.map(async (list) => {
+        for (let page = 0; page < 100; page += 1) {
+          const payload = await fetchClickUp(`/list/${encodeURIComponent(list.id)}/task`, {
+            page, subtasks: true, include_closed: true, order_by: "updated", reverse: true,
+          });
+          const pageTasks = Array.isArray(payload.tasks) ? payload.tasks : [];
+          if (pageTasks.length === 0) break;
+          flat.push(...pageTasks.map(normalizeTask).filter((t) => t.id));
+          if (pageTasks.length < 100) break;
+        }
+      })
+    );
+  } else {
+    for (let page = 0; page < 100; page += 1) {
+      const payload = await fetchClickUp(`/team/${encodeURIComponent(workspaceId)}/task`, {
+        page, subtasks: true, include_closed: true, order_by: "updated", reverse: true,
+      });
+      const pageTasks = Array.isArray(payload.tasks) ? payload.tasks : Array.isArray(payload.data) ? payload.data : [];
+      if (pageTasks.length === 0) break;
+      flat.push(...pageTasks.map(normalizeTask).filter((t) => t.id));
+      if (pageTasks.length < 100) break;
+    }
+  }
+  return { tasks: flat, lists };
+}
+
+function pruneClickUpTaskAssignments(assignments, tasks) {
+  const taskIds = new Set(tasks.map((task) => task.id));
+  return Object.fromEntries(Object.entries(assignments).filter(([taskId, phaseId]) => taskIds.has(taskId) && Boolean(phaseId)));
+}
+
+app.post("/api/clickup/sync-to-client", requireAdmin, async (req, res) => {
+  const { clientId, workspaceId, workspaceName, folderId, folderName } = req.body ?? {};
+  if (!clientId) return res.status(400).json({ error: "clientId required." });
+  if (!workspaceId) return res.status(400).json({ error: "workspaceId required." });
+
+  try {
+    const db = admin.firestore();
+    const timelineRef = db.collection("clients").doc(clientId).collection("timeline").doc("config");
+    const timelineSnap = await timelineRef.get();
+    const current = timelineSnap.exists ? timelineSnap.data() ?? {} : {};
+    const existingClickup = current.clickup ?? {};
+
+    const { tasks, lists } = await fetchFlatClickUpTasksForClient(workspaceId, folderId || undefined);
+    const taskAssignments = pruneClickUpTaskAssignments(existingClickup.taskAssignments ?? {}, tasks);
+
+    await timelineRef.set(
+      stripUndefinedForFirestore({
+        ...current,
+        clickup: {
+          connected: true,
+          workspaceId,
+          workspaceName: workspaceName ?? existingClickup.workspaceName ?? "",
+          folderId: folderId || null,
+          folderName: folderId ? (folderName ?? existingClickup.folderName ?? "") : null,
+          tasks,
+          lists,
+          taskAssignments,
+          lastSyncedAt: new Date().toISOString(),
+        },
+      }),
+      { merge: true }
+    );
+
+    res.json({ success: true, taskCount: tasks.length, listCount: lists.length, workspaceId, folderId: folderId || null });
+  } catch (err) {
+    console.error("[clickup/sync-to-client]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+app.post("/api/clickup/disconnect-client", requireAdmin, async (req, res) => {
+  const { clientId } = req.body ?? {};
+  if (!clientId) return res.status(400).json({ error: "clientId required." });
+
+  try {
+    await admin.firestore().collection("clients").doc(clientId).collection("timeline").doc("config").set(
+      { clickup: { connected: false, workspaceId: null, workspaceName: "", folderId: null, folderName: "", tasks: [], lists: [], taskAssignments: {} } },
+      { merge: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[clickup/disconnect-client]", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -797,6 +960,175 @@ app.post("/api/notify-executive-admin", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("[notify-executive-admin] error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin Auth Actions ─────────────────────────────────────────────────────────
+// Ported from functions/src/resetClientPassword.ts, rotateClientCredentials.ts,
+// and createClientUser.ts. Admin-role checks are handled by requireAdmin — the
+// hand-rolled checks from the original Cloud Functions are dropped.
+
+app.post("/api/admin/reset-client-password", requireAdmin, async (req, res) => {
+  const { clientId, newPassword } = req.body ?? {};
+  if (!clientId || !newPassword || String(newPassword).length < 6) {
+    return res.status(400).json({ error: "clientId and a password of at least 6 characters are required." });
+  }
+
+  try {
+    const db = admin.firestore();
+    const usersSnap = await db.collection("users").where("clientId", "==", clientId).limit(1).get();
+    if (usersSnap.empty) return res.status(404).json({ error: "No user found for this client." });
+
+    const uid = usersSnap.docs[0].id;
+    await admin.auth().updateUser(uid, { password: newPassword });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[admin/reset-client-password]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/rotate-client-credentials", requireAdmin, async (req, res) => {
+  const { clientId, convertKeyId, convertKeySecret } = req.body ?? {};
+  if (!clientId) return res.status(400).json({ error: "clientId required." });
+
+  try {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+
+    if (convertKeyId || convertKeySecret) {
+      const update = { updatedAt: now };
+      if (convertKeyId) update.keyId = encrypt(convertKeyId);
+      if (convertKeySecret) update.keySecret = encrypt(convertKeySecret);
+
+      await db.collection("clients").doc(clientId).collection("credentials").doc("convert").set(update, { merge: true });
+
+      await db.collection("auditLog").add({
+        action: "rotateConvertKey",
+        clientId,
+        performedBy: req.user?.uid ?? "unknown",
+        timestamp: now,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[admin/rotate-client-credentials]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/create-client-user", requireAdmin, async (req, res) => {
+  const data = req.body ?? {};
+  const callerRole = req.user?.role;
+
+  try {
+    const db = admin.firestore();
+    const authAdmin = admin.auth();
+    const now = admin.firestore.Timestamp.now();
+
+    const role = data.role === "executiveAdmin" ? "executiveAdmin" : data.role === "admin" ? "admin" : "client";
+    if (role === "executiveAdmin" && callerRole !== "executiveAdmin") {
+      return res.status(403).json({ error: "Only an executive admin can create executive admins." });
+    }
+
+    const email = String(data.userEmail ?? "").trim().toLowerCase();
+    const displayName = String(data.userName ?? "").trim();
+    if (!email || !displayName || !data.userPassword) {
+      return res.status(400).json({ error: "Name, email, and password are required." });
+    }
+    if (String(data.userPassword).length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters." });
+    }
+
+    let clientId = null;
+    let clientRef = null;
+
+    if (role === "client") {
+      if (!data.clientName || !data.contactName || !data.contactEmail || !data.contractStartDate || !data.contractEndDate) {
+        return res.status(400).json({ error: "Client details are required for client users." });
+      }
+      if (!data.convertAccountId || !data.convertProjectId || !data.convertKeyId || !data.convertKeySecret) {
+        return res.status(400).json({ error: "Convert credentials are required for client users." });
+      }
+      if (new Date(data.contractEndDate).getTime() < new Date(data.contractStartDate).getTime()) {
+        return res.status(400).json({ error: "Engagement end date must be after the start date." });
+      }
+      clientRef = db.collection("clients").doc();
+      clientId = clientRef.id;
+    }
+
+    let user;
+    try {
+      user = await authAdmin.getUserByEmail(email);
+      user = await authAdmin.updateUser(user.uid, { email, password: data.userPassword, displayName, disabled: false });
+    } catch (err) {
+      if (err.code !== "auth/user-not-found") {
+        return res.status(500).json({ error: "Failed to create or update user." });
+      }
+      user = await authAdmin.createUser({ email, password: data.userPassword, displayName, emailVerified: false, disabled: false });
+    }
+
+    if (role === "client" && clientRef && clientId) {
+      const servicePrice = Number(data.servicePrice ?? data.agencyFee ?? 0);
+
+      await clientRef.set({
+        name: data.clientName,
+        contactName: data.contactName,
+        contactEmail: data.contactEmail,
+        contractStartDate: admin.firestore.Timestamp.fromDate(new Date(data.contractStartDate)),
+        contractEndDate: admin.firestore.Timestamp.fromDate(new Date(data.contractEndDate)),
+        agencyFee: servicePrice,
+        servicePrice,
+        currency: data.currency || "USD",
+        logoUrl: "",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await clientRef.collection("credentials").doc("convert").set({
+        accountId: data.convertAccountId,
+        projectId: data.convertProjectId,
+        keyId: encrypt(data.convertKeyId),
+        keySecret: encrypt(data.convertKeySecret),
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await authAdmin.setCustomUserClaims(user.uid, role === "client" ? { role, clientId } : { role });
+
+    await db.collection("users").doc(user.uid).set(
+      {
+        role,
+        email,
+        name: displayName,
+        clientId,
+        createdAt: now,
+        updatedAt: now,
+        lastLogin: null,
+        skipOnboardingEmail: true,
+      },
+      { merge: true }
+    );
+
+    await db.collection("auditLog").add({
+      action: role === "client" ? "createClientUser" : "createAdminUser",
+      clientId,
+      clientName: role === "client" ? data.clientName : null,
+      targetUid: user.uid,
+      targetEmail: email,
+      targetRole: role,
+      performedBy: req.user?.uid ?? "unknown",
+      timestamp: now,
+    });
+
+    res.json({ success: true, clientId, uid: user.uid, role });
+  } catch (err) {
+    console.error("[admin/create-client-user]", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1110,6 +1442,304 @@ app.post("/api/ga4-reports/funnel", requireClientOrAdminOwnership((req) => req.b
   } catch (err) {
     console.error("[ga4-reports/funnel]", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Convert Experiments & Pricing ─────────────────────────────────────────────
+// Ported from functions/src/convertServicePrice.ts and functions/src/getExperiments.ts.
+// Access control (admin OR the owning client) is handled entirely by
+// requireClientOrAdminOwnership — no inline ownership checks needed here.
+
+const CONVERT_API_BASE = "https://api.convert.com/api/v2";
+const CONVERT_PRICE_BASE_CURRENCY = "USD";
+const CONVERT_RATE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const FRANKFURTER_BASE_URL = "https://api.frankfurter.dev/v2";
+const EXCHANGE_RATE_API_BASE_URL = "https://v6.exchangerate-api.com/v6";
+const EXCHANGE_RATE_API_KEY = process.env.EXCHANGE_RATE_API_KEY;
+
+// Convert.com credentials may be stored either as plaintext (legacy createUserDirectly
+// flow) or as AES-encrypted blobs (createClientUser / rotateClientCredentials flow).
+// Try decrypt, fall back to the raw value if it doesn't look encrypted.
+function readConvertCredential(value) {
+  const s = String(value ?? "");
+  if (!s) return "";
+  if (/^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i.test(s)) {
+    try { return decrypt(s); } catch { /* fall through */ }
+  }
+  return s;
+}
+
+function normalizeConvertCurrency(value) {
+  const currency = String(value ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    const err = new Error("Client reporting currency must be a 3-letter ISO code.");
+    err.status = 400;
+    throw err;
+  }
+  return currency;
+}
+
+function normalizeConvertAmount(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return 0;
+  return Math.max(0, amount);
+}
+
+function roundMoney(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function isUnsupportedCurrencyError(err) {
+  const status = err?.response?.status;
+  return status === 400 || status === 404 || status === 422;
+}
+
+async function fetchFrankfurterRate(targetCurrency) {
+  const url = `${FRANKFURTER_BASE_URL}/rate/${CONVERT_PRICE_BASE_CURRENCY}/${targetCurrency}`;
+  const response = await axios.get(url, { timeout: 10000 });
+  const rate = Number(response.data.rate ?? response.data.rates?.[targetCurrency]);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error(`No ${CONVERT_PRICE_BASE_CURRENCY}/${targetCurrency} exchange rate returned by Frankfurter.`);
+  }
+  return {
+    exchangeRate: rate,
+    rateDate: String(response.data.date ?? new Date().toISOString().slice(0, 10)),
+    provider: "frankfurter",
+    cached: false,
+  };
+}
+
+async function fetchExchangeRateApiRate(targetCurrency) {
+  const url = `${EXCHANGE_RATE_API_BASE_URL}/${EXCHANGE_RATE_API_KEY}/pair/${CONVERT_PRICE_BASE_CURRENCY}/${targetCurrency}`;
+  const response = await axios.get(url, { timeout: 10000 });
+  const result = response.data;
+  if (result.result === "error") {
+    const err = new Error(`ExchangeRate-API error: ${result["error-type"] ?? "unknown"}`);
+    err.status = result["error-type"] === "unsupported-code" ? 400 : 503;
+    throw err;
+  }
+  const rate = Number(result.conversion_rate);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error(`No ${CONVERT_PRICE_BASE_CURRENCY}/${targetCurrency} exchange rate returned by ExchangeRate-API.`);
+  }
+  const parsedDate = result.time_last_update_utc ? new Date(result.time_last_update_utc) : null;
+  return {
+    exchangeRate: rate,
+    rateDate: parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    provider: "exchangerate-api",
+    cached: false,
+  };
+}
+
+async function getUsdExchangeRate(targetCurrency) {
+  if (targetCurrency === CONVERT_PRICE_BASE_CURRENCY) {
+    return { exchangeRate: 1, rateDate: new Date().toISOString().slice(0, 10), provider: "identity", cached: false };
+  }
+
+  const db = admin.firestore();
+  const cacheRef = db.collection("exchangeRates").doc(`${CONVERT_PRICE_BASE_CURRENCY}_${targetCurrency}`);
+  const cached = await cacheRef.get();
+  const cachedData = cached.data();
+  const cachedFetchedAt = cachedData?.fetchedAt?.toDate?.();
+  const cachedRate = Number(cachedData?.exchangeRate);
+
+  if (Number.isFinite(cachedRate) && cachedRate > 0 && cachedFetchedAt && Date.now() - cachedFetchedAt.getTime() < CONVERT_RATE_CACHE_TTL_MS) {
+    return {
+      exchangeRate: cachedRate,
+      rateDate: String(cachedData?.rateDate ?? cachedFetchedAt.toISOString().slice(0, 10)),
+      provider: String(cachedData?.provider ?? "frankfurter"),
+      cached: true,
+    };
+  }
+
+  try {
+    const freshRate = await fetchFrankfurterRate(targetCurrency);
+    await cacheRef.set(
+      { baseCurrency: CONVERT_PRICE_BASE_CURRENCY, targetCurrency, exchangeRate: freshRate.exchangeRate, rateDate: freshRate.rateDate, provider: freshRate.provider, fetchedAt: admin.firestore.Timestamp.now() },
+      { merge: true }
+    );
+    return freshRate;
+  } catch (err) {
+    console.warn(`[convert/service-price] Frankfurter lookup failed for ${CONVERT_PRICE_BASE_CURRENCY}/${targetCurrency}:`, err.message);
+    try {
+      const fallbackRate = await fetchExchangeRateApiRate(targetCurrency);
+      await cacheRef.set(
+        { baseCurrency: CONVERT_PRICE_BASE_CURRENCY, targetCurrency, exchangeRate: fallbackRate.exchangeRate, rateDate: fallbackRate.rateDate, provider: fallbackRate.provider, fetchedAt: admin.firestore.Timestamp.now() },
+        { merge: true }
+      );
+      return fallbackRate;
+    } catch (fallbackErr) {
+      if (isUnsupportedCurrencyError(err) && isUnsupportedCurrencyError(fallbackErr)) {
+        const unsupportedErr = new Error(`Reporting currency ${targetCurrency} is not supported by the exchange-rate providers.`);
+        unsupportedErr.status = 400;
+        throw unsupportedErr;
+      }
+      const unavailableErr = new Error(`Could not fetch ${CONVERT_PRICE_BASE_CURRENCY}/${targetCurrency} exchange rate.`);
+      unavailableErr.status = 503;
+      throw unavailableErr;
+    }
+  }
+}
+
+app.post("/api/convert/service-price", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
+  const clientId = String(req.body?.clientId || "");
+  if (!clientId) return res.status(400).json({ error: "clientId required." });
+
+  try {
+    const db = admin.firestore();
+    const clientDoc = await db.collection("clients").doc(clientId).get();
+    if (!clientDoc.exists) return res.status(404).json({ error: "Client not found." });
+
+    const clientData = clientDoc.data();
+    const servicePriceUsd = normalizeConvertAmount(clientData.servicePrice ?? clientData.agencyFee ?? 0);
+    const targetCurrency = normalizeConvertCurrency(clientData.currency ?? CONVERT_PRICE_BASE_CURRENCY);
+    const conversion = await getUsdExchangeRate(targetCurrency);
+
+    res.json({
+      sourceCurrency: CONVERT_PRICE_BASE_CURRENCY,
+      targetCurrency,
+      sourceAmount: servicePriceUsd,
+      convertedAmount: roundMoney(servicePriceUsd * conversion.exchangeRate),
+      exchangeRate: conversion.exchangeRate,
+      rateDate: conversion.rateDate,
+      provider: conversion.provider,
+      cached: conversion.cached,
+    });
+  } catch (err) {
+    console.error("[convert/service-price]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+function signConvertHeaders(keyId, keySecret, url, body) {
+  const expires = Math.floor(Date.now() / 1000) + 60;
+  const sig = crypto.createHmac("sha256", keySecret).update(`${keyId}\n${expires}\n${url}\n${body}`).digest("hex");
+  return {
+    "Content-Type": "application/json",
+    "Convert-Application-ID": keyId,
+    Expires: String(expires),
+    Authorization: `Convert-HMAC-SHA256 Signature=${sig}`,
+  };
+}
+
+function compactConvertExperience(e) {
+  return {
+    id: e.id ?? null,
+    name: e.name ?? null,
+    status: e.status ?? null,
+    start_date: e.start_date ?? null,
+    end_date: e.end_date ?? null,
+    created_at: e.created_at ?? null,
+    goals: Array.isArray(e.goals) ? e.goals.map((g) => ({ id: g.id ?? null, name: g.name ?? null, type: g.type ?? null })) : [],
+    variations: Array.isArray(e.variations)
+      ? e.variations.map((v) => ({ id: v.id ?? null, name: v.name ?? null, status: v.status ?? null, traffic_distribution: v.traffic_distribution ?? null, is_baseline: v.is_baseline ?? null }))
+      : [],
+  };
+}
+
+function compactConvertReport(report) {
+  const data = report?.data ?? report ?? {};
+  const rd = data.reportData ?? {};
+  return {
+    data: {
+      variations_data: Array.isArray(data.variations_data)
+        ? data.variations_data.map((v) => ({ id: v.id ?? null, name: v.name ?? null, is_baseline: v.is_baseline ?? null, traffic_distribution: v.traffic_distribution ?? null }))
+        : [],
+      reportData: {
+        variations: Array.isArray(rd.variations)
+          ? rd.variations.map((v) => ({
+              id: v.id ?? null,
+              stats: Array.isArray(v.stats)
+                ? v.stats.map((s) => ({ timestamp: s.timestamp ?? null, value: s.value ?? null, totals: s.totals ?? null, visitors: s.visitors ?? null }))
+                : [],
+            }))
+          : [],
+      },
+    },
+  };
+}
+
+function httpErrorFromConvertAxios(err, action) {
+  const status = err?.response?.status;
+  const body = err?.response?.data;
+  console.error(`[convert/experiments] ${action} failed:`, { status, body, message: err.message });
+
+  const httpErr = new Error(
+    status === 401 || status === 403
+      ? `Convert API rejected credentials (${status}). Check the encrypted keyId/keySecret stored for this client.`
+      : status === 404
+        ? `Convert API returned 404 for ${action}. Check accountId/projectId.`
+        : status
+          ? `Convert API ${action} failed with HTTP ${status}: ${JSON.stringify(body).slice(0, 300)}`
+          : `Convert API ${action} failed: ${err.message}`
+  );
+  httpErr.status = status === 401 || status === 403 ? 403 : status === 404 ? 404 : status ? 503 : 500;
+  return httpErr;
+}
+
+app.post("/api/convert/experiments", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
+  const clientId = String(req.body?.clientId || "");
+  if (!clientId) return res.status(400).json({ error: "clientId required." });
+
+  try {
+    const db = admin.firestore();
+    const credSnap = await db.collection("clients").doc(clientId).collection("credentials").doc("convert").get();
+    if (!credSnap.exists) return res.status(404).json({ error: "No Convert credentials for this client." });
+
+    const cred = credSnap.data();
+    const accountId = String(cred.accountId ?? "");
+    const projectId = String(cred.projectId ?? "");
+    if (!accountId || !projectId) {
+      return res.status(400).json({ error: "Convert credentials missing accountId or projectId." });
+    }
+
+    const keyId = readConvertCredential(cred.keyId);
+    const keySecret = readConvertCredential(cred.keySecret);
+    if (!keyId || !keySecret) {
+      return res.status(400).json({ error: "Convert credentials missing keyId or keySecret." });
+    }
+
+    const clientDoc = await db.collection("clients").doc(clientId).get();
+    const clientData = clientDoc.data() || {};
+    const startDate = clientData.contractStartDate?.toDate?.() ?? new Date(0);
+    const startTime = Math.floor(startDate.getTime() / 1000);
+    const endTime = Math.floor(Date.now() / 1000);
+
+    const listUrl = `${CONVERT_API_BASE}/accounts/${accountId}/projects/${projectId}/experiences`;
+    const listBody = JSON.stringify({
+      results_per_page: 500,
+      sort_by: "id",
+      sort_direction: "asc",
+      include: ["variations", "goals"],
+      expand: ["variations", "goals"],
+    });
+
+    let experiences;
+    try {
+      const listRes = await axios.post(listUrl, listBody, { headers: signConvertHeaders(keyId, keySecret, listUrl, listBody) });
+      experiences = (listRes.data?.data ?? listRes.data ?? []).map(compactConvertExperience);
+    } catch (err) {
+      throw httpErrorFromConvertAxios(err, "list experiments");
+    }
+
+    const reports = await Promise.all(
+      experiences.map(async (exp) => {
+        try {
+          const url = `${CONVERT_API_BASE}/accounts/${accountId}/projects/${projectId}/experiences/${exp.id}/aggregated_report`;
+          const body = JSON.stringify({ utc_offset: 0, start_time: startTime, end_time: endTime });
+          const reportRes = await axios.post(url, body, { headers: signConvertHeaders(keyId, keySecret, url, body) });
+          return { experimentId: String(exp.id), report: compactConvertReport(reportRes.data) };
+        } catch (err) {
+          console.warn(`[convert/experiments] report failed for ${exp.id}:`, err?.response?.status, err.message);
+          return { experimentId: String(exp.id), report: null };
+        }
+      })
+    );
+
+    res.json({ experiments, reports });
+  } catch (err) {
+    console.error("[convert/experiments]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useClientTimeline } from "@/hooks/useClientTimeline";
 import { TimelineViewer } from "@/components/timeline/TimelineViewer";
+import { ClickUpGanttChart } from "@/components/timeline/ClickUpGanttChart";
 import { sortPhases } from "@/lib/timeline";
 import type { ClickUpTask } from "@/types";
 
@@ -48,6 +49,16 @@ export function TimelinePage() {
         phaseTasks={phaseTasks}
         emptySubtitle="The admin needs to build the engagement timeline first."
       /></div>
+
+      <div data-tutorial="clickup-gantt">
+        <h2 className="text-lg font-semibold text-ink">Task Gantt</h2>
+        <p className="mb-3 text-sm text-ink/50">Automatically generated from your synced ClickUp tasks.</p>
+        <ClickUpGanttChart
+          tasks={timeline.clickup?.tasks ?? []}
+          lists={timeline.clickup?.lists ?? []}
+          connected={Boolean(timeline.clickup?.connected)}
+        />
+      </div>
     </div>
   );
 }

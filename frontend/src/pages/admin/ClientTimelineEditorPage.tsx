@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { ArrowLeft, CopyPlus, ExternalLink, GripVertical, Link as LinkIcon, Plus, Save, Send, Trash2, Unlink } from "lucide-react";
-import { db, functions } from "@/lib/firebase";
+import { ArrowLeft, CopyPlus, ExternalLink, GripVertical, Plus, Save, Send, Trash2, Unlink } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { TimelineViewer } from "@/components/timeline/TimelineViewer";
 import { useClientTimeline } from "@/hooks/useClientTimeline";
-import type { ClientDoc, ClientTimelineConfig, ClickUpTask, TimelinePhase } from "@/types";
+import type { ClientDoc, ClientTimelineConfig, ClickUpFolder, ClickUpTask, ClickUpWorkspace, TimelinePhase } from "@/types";
 import { sortPhases, toDateKey } from "@/lib/timeline";
 
 const PHASE_COLORS = ["#6ae499", "#7cb7ff", "#fbbf24", "#f97316", "#f472b6", "#a78bfa", "#d94444"];
@@ -40,6 +40,11 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [clickupLoading, setClickupLoading] = useState(false);
   const [clickupMessage, setClickupMessage] = useState<string>("");
+  const [clickupConfigured, setClickupConfigured] = useState<boolean | null>(null);
+  const [clickupWorkspaces, setClickupWorkspaces] = useState<ClickUpWorkspace[]>([]);
+  const [clickupFolders, setClickupFolders] = useState<ClickUpFolder[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState("");
 
   useEffect(() => {
     if (!clientId) return;
@@ -50,11 +55,36 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
   }, [clientId]);
 
   useEffect(() => {
+    fetchWithAuth("/api/clickup/status")
+      .then((resp) => readJsonOrThrow<{ configured?: boolean }>(resp, "Failed to check ClickUp status."))
+      .then((data) => setClickupConfigured(Boolean(data.configured)))
+      .catch(() => setClickupConfigured(false));
+  }, []);
+
+  useEffect(() => {
+    if (!clickupConfigured) return;
+    fetchWithAuth("/api/clickup/workspaces")
+      .then((resp) => readJsonOrThrow<{ workspaces?: ClickUpWorkspace[] }>(resp, "Failed to load ClickUp workspaces."))
+      .then((data) => setClickupWorkspaces(data.workspaces ?? []))
+      .catch((err) => setClickupMessage(`Failed to load ClickUp workspaces: ${String(err)}`));
+  }, [clickupConfigured]);
+
+  useEffect(() => {
+    if (!selectedWorkspaceId) return;
+    fetchWithAuth(`/api/clickup/folders?workspaceId=${encodeURIComponent(selectedWorkspaceId)}`)
+      .then((resp) => readJsonOrThrow<{ folders?: ClickUpFolder[] }>(resp, "Failed to load ClickUp folders."))
+      .then((data) => setClickupFolders(data.folders ?? []))
+      .catch((err) => setClickupMessage(`Failed to load ClickUp folders: ${String(err)}`));
+  }, [selectedWorkspaceId]);
+
+  useEffect(() => {
     if (loaded && !ready) {
       setLocal(timeline);
       setReady(true);
       const first = timeline.phases?.[0]?.id ?? null;
       setSelectedPhaseId(first);
+      if (timeline.clickup?.workspaceId) setSelectedWorkspaceId(timeline.clickup.workspaceId);
+      if (timeline.clickup?.folderId) setSelectedFolderId(timeline.clickup.folderId);
     }
   }, [loaded, ready, timeline]);
 
@@ -72,23 +102,12 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
     });
     return map;
   }, [clickup.taskAssignments, clickupTasks]);
-  const activeWorkspaceId = clickup.activeWorkspaceId ?? clickup.workspaces?.[0]?.id ?? "";
-  const hasClickup = Boolean(clickup.connected && (clickup.workspaces?.length ?? 0) > 0);
+  const hasClickup = Boolean(clickup.connected && clickup.workspaceId);
 
   const updatePhase = (id: string, patch: Partial<TimelinePhase>) => {
     setLocal((prev) => ({
       ...prev,
       phases: (prev.phases ?? []).map((phase) => (phase.id !== id ? phase : { ...phase, ...patch })),
-    }));
-  };
-
-  const updateClickup = (patch: Partial<NonNullable<ClientTimelineConfig["clickup"]>>) => {
-    setLocal((prev) => ({
-      ...prev,
-      clickup: {
-        ...(prev.clickup ?? {}),
-        ...patch,
-      },
     }));
   };
 
@@ -153,31 +172,25 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
     }
   };
 
-  const handleConnectClickup = async () => {
-    if (!clientId) return;
-    setClickupLoading(true);
-    setClickupMessage("");
-    try {
-      const createAuthUrl = httpsCallable(functions, "clickupGetAuthUrl");
-      const returnTo = `${window.location.origin}/admin/clients/${clientId}/timeline`;
-      const response = await createAuthUrl({ clientId, returnTo });
-      const authUrl = (response.data as { authUrl?: string }).authUrl;
-      if (!authUrl) throw new Error("ClickUp auth URL was not returned.");
-      window.location.href = authUrl;
-    } catch (err) {
-      setClickupMessage(`ClickUp connect failed: ${String(err)}`);
-      setClickupLoading(false);
-    }
-  };
-
   const handleSyncClickupTasks = async () => {
-    if (!clientId) return;
+    if (!clientId || !selectedWorkspaceId) return;
     setClickupLoading(true);
     setClickupMessage("");
     try {
-      const syncTasks = httpsCallable(functions, "clickupSyncTasks");
-      const response = await syncTasks({ clientId, workspaceId: activeWorkspaceId || undefined });
-      const data = response.data as { taskCount?: number; workspaceId?: string };
+      const workspaceName = clickupWorkspaces.find((w) => w.id === selectedWorkspaceId)?.name ?? "";
+      const folderName = selectedFolderId ? clickupFolders.find((f) => f.id === selectedFolderId)?.name ?? "" : "";
+      const resp = await fetchWithAuth("/api/clickup/sync-to-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          workspaceId: selectedWorkspaceId,
+          workspaceName,
+          folderId: selectedFolderId || undefined,
+          folderName: selectedFolderId ? folderName : undefined,
+        }),
+      });
+      const data = await readJsonOrThrow<{ taskCount?: number }>(resp, "ClickUp sync failed.");
       setClickupMessage(`Loaded ${data.taskCount ?? 0} ClickUp tasks.`);
       await refreshTimeline();
     } catch (err) {
@@ -192,20 +205,21 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
     setClickupLoading(true);
     setClickupMessage("");
     try {
-      const disconnect = httpsCallable(functions, "clickupDisconnect");
-      await disconnect({ clientId });
+      const resp = await fetchWithAuth("/api/clickup/disconnect-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      await readJsonOrThrow(resp, "Clearing ClickUp scope failed.");
       setLocal((prev) => ({
         ...prev,
-        clickup: {
-          connected: false,
-          workspaces: [],
-          tasks: [],
-          taskAssignments: {},
-        },
+        clickup: { connected: false, workspaceId: null, workspaceName: "", folderId: null, folderName: "", tasks: [], taskAssignments: {} },
       }));
-      setClickupMessage("ClickUp disconnected.");
+      setSelectedWorkspaceId("");
+      setSelectedFolderId("");
+      setClickupMessage("ClickUp scope cleared for this client.");
     } catch (err) {
-      setClickupMessage(`Disconnect failed: ${String(err)}`);
+      setClickupMessage(`Clearing ClickUp scope failed: ${String(err)}`);
     } finally {
       setClickupLoading(false);
     }
@@ -367,48 +381,74 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
             <div>
               <h2 className="font-semibold text-ink">ClickUp Tasks</h2>
               <p className="mt-1 text-xs text-ink/45">
-                Connect a ClickUp workspace, sync tasks, then assign them to phases.
+                Pick a workspace and folder (usually named after the client), sync tasks, then assign them to phases.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={handleConnectClickup} loading={clickupLoading} className="flex items-center gap-1.5">
-                <LinkIcon className="h-4 w-4" />
-                {hasClickup ? "Reconnect" : "Connect"}
+            {hasClickup && (
+              <Button variant="ghost" size="sm" onClick={handleDisconnectClickup} loading={clickupLoading} className="flex items-center gap-1.5">
+                <Unlink className="h-4 w-4" />
+                Clear
               </Button>
-              {hasClickup && (
-                <Button variant="ghost" size="sm" onClick={handleDisconnectClickup} loading={clickupLoading} className="flex items-center gap-1.5">
-                  <Unlink className="h-4 w-4" />
-                  Disconnect
-                </Button>
-              )}
-            </div>
+            )}
           </CardHeader>
           <CardBody className="space-y-4">
-            {!hasClickup ? (
+            {clickupConfigured === false ? (
               <div className="rounded-2xl border border-dashed border-ink/15 bg-ink/[0.02] p-6 text-sm text-ink/50">
-                Connect ClickUp to load workspace tasks into this timeline.
+                ClickUp isn&apos;t connected yet.{" "}
+                <Link to="/admin/settings" className="text-brand-700 hover:text-brand-800">
+                  Save a personal API token in Settings
+                </Link>{" "}
+                first.
               </div>
             ) : (
               <>
-                <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-ink/80">Workspace</label>
                     <select
-                      value={activeWorkspaceId}
-                      onChange={(e) => updateClickup({ activeWorkspaceId: e.target.value })}
+                      value={selectedWorkspaceId}
+                      onChange={(e) => {
+                        setSelectedWorkspaceId(e.target.value);
+                        setSelectedFolderId("");
+                        setClickupFolders([]);
+                      }}
                       className="w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                     >
-                      {(clickup.workspaces ?? []).map((workspace) => (
+                      <option value="">Select a workspace</option>
+                      {clickupWorkspaces.map((workspace) => (
                         <option key={workspace.id} value={workspace.id}>
                           {workspace.name}
                         </option>
                       ))}
                     </select>
                   </div>
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-ink/80">Folder</label>
+                    <select
+                      value={selectedFolderId}
+                      onChange={(e) => setSelectedFolderId(e.target.value)}
+                      disabled={!selectedWorkspaceId}
+                      className="w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
+                    >
+                      <option value="">Whole workspace</option>
+                      {clickupFolders.map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="flex items-end">
-                    <Button variant="secondary" size="md" onClick={handleSyncClickupTasks} loading={clickupLoading} className="flex items-center gap-1.5 w-full">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={handleSyncClickupTasks}
+                      loading={clickupLoading}
+                      disabled={!selectedWorkspaceId}
+                      className="flex items-center gap-1.5 w-full"
+                    >
                       <Send className="h-4 w-4" />
-                      Sync tasks from ClickUp
+                      Sync
                     </Button>
                   </div>
                 </div>
@@ -419,22 +459,25 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                   </div>
                 )}
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3">
-                    <p className="text-xs uppercase tracking-wide text-ink/40">Tasks loaded</p>
-                    <p className="mt-1 text-lg font-semibold text-ink">{clickupTasks.length}</p>
+                {hasClickup && (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-ink/40">Tasks loaded</p>
+                      <p className="mt-1 text-lg font-semibold text-ink">{clickupTasks.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-ink/40">Last sync</p>
+                      <p className="mt-1 text-sm font-medium text-ink">{clickup.lastSyncedAt ? new Date(clickup.lastSyncedAt).toLocaleString() : "Never"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-ink/40">Scope</p>
+                      <p className="mt-1 text-sm font-medium text-ink">
+                        {clickup.workspaceName || "Workspace"}
+                        {clickup.folderName ? ` / ${clickup.folderName}` : " (whole workspace)"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3">
-                    <p className="text-xs uppercase tracking-wide text-ink/40">Last sync</p>
-                    <p className="mt-1 text-sm font-medium text-ink">{clickup.lastSyncedAt ? new Date(clickup.lastSyncedAt).toLocaleString() : "Never"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3">
-                    <p className="text-xs uppercase tracking-wide text-ink/40">Selected workspace</p>
-                    <p className="mt-1 text-sm font-medium text-ink">
-                      {clickup.workspaces?.find((workspace) => workspace.id === activeWorkspaceId)?.name ?? "Unselected"}
-                    </p>
-                  </div>
-                </div>
+                )}
 
                 <div className="max-h-[440px] overflow-auto rounded-2xl border border-ink/10">
                   {clickupTasks.length > 0 ? (

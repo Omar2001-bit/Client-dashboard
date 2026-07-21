@@ -25,6 +25,7 @@ import { GA4ExperimentsPage } from "@/pages/dashboard/GA4ExperimentsPage";
 import { BookMeetingPage } from "@/pages/dashboard/BookMeetingPage";
 import { ProfilePage } from "@/pages/dashboard/ProfilePage";
 import { TimelinePage } from "@/pages/dashboard/TimelinePage";
+import { ClickUpTasksPage } from "@/pages/dashboard/ClickUpTasksPage";
 import { SupportPage } from "@/pages/dashboard/SupportPage";
 import { DocsPage } from "@/pages/dashboard/DocsPage";
 import { AuditFindingsPage } from "@/pages/dashboard/AuditFindingsPage";
@@ -76,6 +77,7 @@ function App() {
             <Route index element={<ClientDashboardPage />} />
             <Route path="ab-testing" element={<ABTestingResultsPage />} />
             <Route path="timeline" element={<TimelinePage />} />
+            <Route path="tasks" element={<ClickUpTasksPage />} />
             <Route path="book-meeting" element={<BookMeetingPage />} />
             <Route path="experiments" element={<ExperimentListPage />} />
             <Route path="experiments/:experimentId" element={<ExperimentDetailPage />} />

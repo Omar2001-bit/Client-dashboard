@@ -1,63 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteField, doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
-import { ArrowLeft, Copy, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { db, firebaseConfig } from "@/lib/firebase";
-import type { ClickUpAppConfig } from "@/types";
-
-const DEFAULT_CALLBACK_URL = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/clickupOAuthCallback`;
-
-type ClickUpConfigState = Omit<ClickUpAppConfig, "clientSecret"> & {
-  clientSecret: string;
-  source: "firestore" | "env" | "";
-};
+import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
+import type { ClickUpAccessConfig } from "@/types";
 
 export function AdminSettingsPage() {
-  const [state, setState] = useState<ClickUpConfigState>({
-    clientId: "",
-    redirectUri: DEFAULT_CALLBACK_URL,
-    clientSecret: "",
-    hasSecret: false,
-    source: "",
-    configured: false,
-  });
+  const [status, setStatus] = useState<ClickUpAccessConfig>({ configured: false, source: "" });
+  const [personalToken, setPersonalToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string>("");
 
   const displaySource = useMemo(() => {
-    if (!state.source) return "Not configured";
-    return state.source === "firestore" ? "Saved in Firestore" : "Using environment fallback";
-  }, [state.source]);
+    if (!status.source) return "Not configured";
+    return status.source === "firestore" ? "Saved in Firestore" : "Using environment fallback";
+  }, [status.source]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDoc(doc(db, "appConfig", "clickup"));
-        const data = (snap.exists() ? (snap.data() as Partial<ClickUpAppConfig> & { clientSecretEnc?: string }) : {}) ?? {};
-        const storedSecret = Boolean((data as { clientSecretEnc?: string }).clientSecretEnc ?? data.clientSecret ?? data.hasSecret);
-        const updatedAt =
-          data.updatedAt && typeof data.updatedAt === "object" && "toDate" in data.updatedAt
-            ? (data.updatedAt as Timestamp).toDate().toISOString()
-            : typeof data.updatedAt === "string"
-              ? data.updatedAt
-              : undefined;
-        setState((prev) => ({
-          ...prev,
-          clientId: data.clientId ?? "",
-          redirectUri: data.redirectUri ?? DEFAULT_CALLBACK_URL,
-          clientSecret: "",
-          hasSecret: storedSecret,
-          source: snap.exists() ? "firestore" : "",
-          configured: Boolean(data.configured ?? (data.clientId && data.redirectUri && storedSecret)),
-          updatedAt,
-          updatedBy: data.updatedBy,
-        }));
+        const resp = await fetchWithAuth("/api/clickup/status");
+        setStatus(await readJsonOrThrow<ClickUpAccessConfig>(resp, "Failed to load ClickUp status."));
       } catch (err) {
-        setMessage(`Failed to load ClickUp config: ${String(err)}`);
+        setMessage(`Failed to load ClickUp status: ${String(err)}`);
       } finally {
         setLoading(false);
       }
@@ -65,36 +33,30 @@ export function AdminSettingsPage() {
     load();
   }, []);
 
-  const copyCallback = async () => {
-    await navigator.clipboard.writeText(DEFAULT_CALLBACK_URL);
-    setMessage("Callback URL copied.");
-  };
-
   const handleSave = async () => {
+    if (!personalToken.trim()) return;
     setSaving(true);
     setMessage("");
     try {
-      const payload: Record<string, unknown> = {
-        clientId: state.clientId.trim(),
-        redirectUri: state.redirectUri.trim(),
-        updatedAt: Timestamp.now(),
-      };
-      if (state.clientSecret.trim()) {
-        payload.clientSecret = state.clientSecret.trim();
-        payload.clientSecretEnc = deleteField();
-      }
-      await setDoc(doc(db, "appConfig", "clickup"), payload, { merge: true });
-      const nextHasSecret = state.hasSecret || Boolean(state.clientSecret.trim());
-      setState((prev) => ({
+      const resp = await fetchWithAuth("/api/clickup/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personalToken: personalToken.trim() }),
+      });
+      const data = await readJsonOrThrow<{ authorizedUserName?: string; authorizedUserEmail?: string }>(
+        resp,
+        "Failed to save ClickUp token."
+      );
+      setPersonalToken("");
+      setStatus((prev) => ({
         ...prev,
-        clientSecret: "",
-        hasSecret: nextHasSecret,
+        configured: true,
         source: "firestore",
-        configured: Boolean(state.clientId.trim() && state.redirectUri.trim() && nextHasSecret),
+        authorizedUserName: data.authorizedUserName,
+        authorizedUserEmail: data.authorizedUserEmail,
         updatedAt: new Date().toISOString(),
-        updatedBy: undefined,
       }));
-      setMessage("ClickUp integration saved.");
+      setMessage(`ClickUp connected as ${data.authorizedUserName || data.authorizedUserEmail || "you"}.`);
     } catch (err) {
       setMessage(`Save failed: ${String(err)}`);
     } finally {
@@ -122,8 +84,11 @@ export function AdminSettingsPage() {
         <Card data-tutorial="admin-settings-clickup">
           <CardHeader className="flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-ink">ClickUp OAuth</h2>
-              <p className="mt-1 text-xs text-ink/45">Store the app credentials here so the timeline editor can connect later.</p>
+              <h2 className="font-semibold text-ink">ClickUp Access</h2>
+              <p className="mt-1 text-xs text-ink/45">
+                One personal API token gives the dashboard read access to your ClickUp workspace. Each client&apos;s
+                timeline is then scoped to a workspace folder when you sync it.
+              </p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-full bg-ink/[0.02] px-3 py-1 text-xs font-medium text-ink/60">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -131,35 +96,24 @@ export function AdminSettingsPage() {
             </div>
           </CardHeader>
           <CardBody className="space-y-4">
+            {status.configured && status.authorizedUserName && (
+              <div className="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3 text-sm text-ink/70">
+                Connected as <span className="font-medium text-ink">{status.authorizedUserName}</span>
+                {status.authorizedUserEmail ? ` (${status.authorizedUserEmail})` : ""}
+              </div>
+            )}
             <Input
-              label="ClickUp Client ID"
-              value={state.clientId}
-              onChange={(e) => setState((prev) => ({ ...prev, clientId: e.target.value }))}
-              placeholder="Paste the ClickUp app Client ID"
-            />
-            <Input
-              label="ClickUp Client Secret"
-              value={state.clientSecret}
-              onChange={(e) => setState((prev) => ({ ...prev, clientSecret: e.target.value }))}
-              placeholder={state.hasSecret ? "Leave blank to keep the existing secret" : "Paste the ClickUp app Client Secret"}
-            />
-            <Input
-              label="Redirect URI"
-              value={state.redirectUri}
-              onChange={(e) => setState((prev) => ({ ...prev, redirectUri: e.target.value }))}
-              placeholder={DEFAULT_CALLBACK_URL}
+              label="ClickUp Personal API Token"
+              value={personalToken}
+              onChange={(e) => setPersonalToken(e.target.value)}
+              placeholder={status.configured ? "Leave blank to keep the existing token" : "Paste your ClickUp personal API token (pk_...)"}
+              type="password"
             />
 
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={handleSave} loading={saving} className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Save ClickUp Config
-              </Button>
-              <Button variant="secondary" onClick={copyCallback} className="flex items-center gap-2">
-                <Copy className="h-4 w-4" />
-                Copy callback URL
-              </Button>
-            </div>
+            <Button onClick={handleSave} loading={saving} disabled={!personalToken.trim()} className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Save Token
+            </Button>
 
             {message && (
               <div className="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3 text-sm text-ink/60">
@@ -175,10 +129,8 @@ export function AdminSettingsPage() {
           </CardHeader>
           <CardBody className="space-y-4 text-sm text-ink/65">
             <div className="rounded-2xl bg-ink/[0.02] p-4">
-              <p className="font-medium text-ink">1. Create the ClickUp app</p>
-              <p className="mt-1">
-                Use ClickUp&apos;s OAuth app settings to generate the Client ID and Client Secret.
-              </p>
+              <p className="font-medium text-ink">1. Generate a personal API token</p>
+              <p className="mt-1">In ClickUp, go to your avatar &gt; Settings &gt; Apps &gt; API Token.</p>
               <a
                 href="https://help.clickup.com/hc/articles/6303426241687-Getting-Started-with-the-ClickUp-API"
                 target="_blank"
@@ -191,22 +143,25 @@ export function AdminSettingsPage() {
             </div>
 
             <div className="rounded-2xl bg-ink/[0.02] p-4">
-              <p className="font-medium text-ink">2. Register the redirect URL</p>
-              <p className="mt-1 break-all text-xs text-ink/55">{DEFAULT_CALLBACK_URL}</p>
-              <p className="mt-2">Paste this exact URL into the ClickUp app redirect list.</p>
+              <p className="font-medium text-ink">2. Organize by client</p>
+              <p className="mt-1">
+                A folder (or list) per client in your workspace makes syncing straightforward &mdash; you&apos;ll pick
+                that scope when connecting a client&apos;s timeline.
+              </p>
             </div>
 
             <div className="rounded-2xl bg-ink/[0.02] p-4">
               <p className="font-medium text-ink">3. Use the timeline editor</p>
               <p className="mt-1">
-                After saving the config, open a client timeline and click Connect ClickUp to authorize the workspace.
+                After saving the token here, open a client&apos;s Timeline Builder, pick the workspace and folder, and
+                sync tasks.
               </p>
             </div>
 
-            {state.updatedAt && (
+            {status.updatedAt && (
               <div className="rounded-2xl border border-ink/10 bg-white px-4 py-3 text-xs text-ink/50">
-                Last updated {new Date(state.updatedAt).toLocaleString()}
-                {state.updatedBy ? ` by ${state.updatedBy}` : ""}
+                Last updated {new Date(status.updatedAt).toLocaleString()}
+                {status.updatedBy ? ` by ${status.updatedBy}` : ""}
               </div>
             )}
           </CardBody>

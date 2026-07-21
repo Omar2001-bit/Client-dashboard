@@ -52,3 +52,24 @@ export function useClientTimeline(clientId: string | null | undefined) {
 
   return { timeline, loaded, error, saveTimeline };
 }
+
+/** Narrow, layout-level read: is ClickUp connected for this client? Used to gate nav-item
+ *  visibility without holding the full timeline (incl. a potentially large clickup.tasks
+ *  array) in every client page's render tree. */
+export function useClickUpConnected(clientId: string | null | undefined): boolean {
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    if (!clientId) return;
+    return onSnapshot(
+      doc(db, "clients", clientId, "timeline", "config"),
+      (snap) => {
+        const next = Boolean((snap.data() as ClientTimelineConfig | undefined)?.clickup?.connected);
+        setConnected((prev) => (prev === next ? prev : next));
+      },
+      () => setConnected(false)
+    );
+  }, [clientId]);
+
+  return connected;
+}

@@ -11,3 +11,13 @@ export async function fetchWithAuth(path: string, init: RequestInit = {}): Promi
   if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(`${API_BASE}${path}`, { ...init, headers });
 }
+
+/** Parses a fetchWithAuth() response as JSON, throwing an Error with the
+ *  server's { error: "message" } body (or a fallback) when the response isn't ok. */
+export async function readJsonOrThrow<T>(resp: Response, fallbackMessage: string): Promise<T> {
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? fallbackMessage);
+  }
+  return resp.json();
+}

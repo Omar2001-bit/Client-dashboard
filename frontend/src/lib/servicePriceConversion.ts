@@ -1,5 +1,4 @@
-import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import { fetchWithAuth } from "@/lib/apiClient";
 
 const BASE_CURRENCY = "USD";
 const EXCHANGE_RATE_API_KEY = import.meta.env.VITE_EXCHANGE_RATE_API_KEY as string;
@@ -27,14 +26,14 @@ export async function convertClientServicePrice(
     return buildConversion(normalizedSourceAmount, normalizedTargetCurrency, 1, "identity", false);
   }
 
-  const convertServicePrice = httpsCallable<{ clientId: string }, ServicePriceConversion>(
-    functions,
-    "convertServicePrice"
-  );
-
   try {
-    const result = await convertServicePrice({ clientId });
-    return result.data;
+    const resp = await fetchWithAuth("/api/convert/service-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId }),
+    });
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+    return (await resp.json()) as ServicePriceConversion;
   } catch {
     return convertServicePriceInBrowser(normalizedSourceAmount, normalizedTargetCurrency);
   }

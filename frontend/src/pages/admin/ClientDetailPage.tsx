@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { doc, getDoc, getDocs, updateDoc, collection, query, where, Timestamp } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
@@ -15,7 +14,7 @@ import { useAuthStore } from "@/store/authStore";
 import { ClientDashboardSettingsPage } from "@/pages/admin/ClientDashboardSettingsPage";
 import { ClientTimelineEditorPage } from "@/pages/admin/ClientTimelineEditorPage";
 import { AdminAuditFindingsPage } from "@/pages/admin/AdminAuditFindingsPage";
-import { fetchWithAuth } from "@/lib/apiClient";
+import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 
 export function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -135,17 +134,21 @@ export function ClientDetailPage() {
     if (!newConvertKeyId && !newConvertKeySecret) return;
     setSaving(true);
     try {
-      const rotate = httpsCallable(functions, "rotateClientCredentials");
-      await rotate({
-        clientId,
-        ...(newConvertKeyId ? { convertKeyId: newConvertKeyId } : {}),
-        ...(newConvertKeySecret ? { convertKeySecret: newConvertKeySecret } : {}),
+      const resp = await fetchWithAuth("/api/admin/rotate-client-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          ...(newConvertKeyId ? { convertKeyId: newConvertKeyId } : {}),
+          ...(newConvertKeySecret ? { convertKeySecret: newConvertKeySecret } : {}),
+        }),
       });
+      await readJsonOrThrow(resp, "Failed to rotate credentials.");
       setNewConvertKeyId("");
       setNewConvertKeySecret("");
       setMessage("Credentials rotated.");
-    } catch {
-      setMessage("Failed to rotate credentials.");
+    } catch (err) {
+      setMessage(`Failed to rotate credentials: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -191,8 +194,12 @@ export function ClientDetailPage() {
     setPasswordResetting(true);
     setPasswordMessage(null);
     try {
-      const reset = httpsCallable(functions, "resetClientPassword");
-      await reset({ clientId, newPassword });
+      const resp = await fetchWithAuth("/api/admin/reset-client-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, newPassword }),
+      });
+      await readJsonOrThrow(resp, "Failed to reset password.");
       setPasswordMessage({ text: "Password updated successfully. Share it with the client.", type: "success" });
     } catch (err) {
       setPasswordMessage({ text: `Failed: ${(err as Error).message}`, type: "error" });
