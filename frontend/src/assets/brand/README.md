@@ -1,27 +1,20 @@
-# Brand assets — PLACEHOLDERS
+# Brand assets
 
-These are **placeholder** brand assets so the app renders without blocking. Replace them with the
-**official OP-monogram artwork** when it's available.
+Official Optimizers artwork.
 
 ## Files
 
-| File | Where it's used | Replace with |
-|---|---|---|
-| `../../../public/favicon.svg` | Browser tab icon (`index.html`) | Official mark, square, self-colored (works small) |
-| `optimizers-logo-full.svg` | Reference / handoff (marketing, exports) | Official full lockup (mark + wordmark) |
+| File | Where it's used |
+|---|---|
+| `optimizers-logo-full.png` | Full lockup (mark + wordmark), dark navy on transparent. Rendered by `Logo` (`variant="full"`) — light backgrounds only, see note below. |
+| `optimizers-icon.png` | Icon-only monogram, brand green on transparent. Rendered by `Logo` (`variant="mark"`), and cropped/padded into `../../../public/favicon.png` (browser tab icon). |
 
-## The in-app logo is a React component, not a file
+## The in-app logo
 
-The logo the app actually renders is `frontend/src/components/ui/Logo.tsx` — an **inline SVG** so it
-can be tinted via `currentColor` (the brand's primary/secondary/tertiary color variations map to the
-parent's text color: `text-ink`, `text-white`, `text-brand-500`).
+`frontend/src/components/ui/Logo.tsx` renders these PNGs directly via `<img>`. Unlike the old
+placeholder (an inline SVG tinted with `currentColor`), these are fixed-color rasters — wrapping
+`<Logo>` in `text-ink` / `text-white` / `text-brand-500` no longer changes its color.
 
-### To install the official logo
-1. Drop the official vector into this folder.
-2. Update `Logo.tsx` — either paste the official `<path>` data into the inline SVG (keeping
-   `fill="currentColor"` so tinting still works), or, if you prefer fixed-color files, import the SVGs
-   as URLs and render `<img>` (note: `<img>`-rendered SVGs can't inherit `currentColor`, so you'd
-   need one file per color variant).
-3. Regenerate `public/favicon.svg` from the official mark.
-
-See `docs/brand/01-logo.md` for the logo rationale, color variations, and usage rules.
+**Known gap:** `optimizers-logo-full.png` is dark-on-transparent, so it only reads on light
+backgrounds. `AdminLayout`'s sidebar is dark and currently uses it anyway as a temporary
+placeholder (low contrast) — swap in a white/reversed lockup there once one is supplied.

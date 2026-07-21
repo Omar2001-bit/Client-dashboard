@@ -29,8 +29,8 @@ export function AdminLayout() {
     <div className="min-h-screen flex bg-canvas">
       {/* Sidebar */}
       <aside className="w-64 bg-ink text-white flex flex-col">
-        <div className="px-6 py-6 border-b border-white/10 flex items-center text-white">
-          <Logo variant="full" className="h-7 w-auto" />
+        <div className="pl-14 pr-4 py-4 border-b border-white/10 flex items-center text-white">
+          <Logo variant="full" tone="white" className="h-auto w-[92px]" />
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1">
           {navItems.map(({ to, icon: Icon, label, end }) => (

@@ -44,8 +44,8 @@ export function ClientLayout() {
   return (
     <div className="min-h-screen flex bg-canvas">
       <aside className="w-64 bg-white border-r border-ink/10 flex flex-col">
-        <div className="px-6 py-6 border-b border-ink/5 flex items-center text-ink">
-          <Logo variant="full" className="h-7 w-auto" />
+        <div className="pl-14 pr-4 py-4 border-b border-ink/5 flex items-center text-ink">
+          <Logo variant="full" className="h-auto w-[92px]" />
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1">
           {navItems.map(({ to, icon: Icon, label, end }) => (
