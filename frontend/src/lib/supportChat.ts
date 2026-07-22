@@ -9,6 +9,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { API_BASE } from "@/lib/apiClient";
 
 export async function ensureTicketExists(clientId: string, clientName: string) {
   const ref = doc(db, "supportTickets", clientId);
@@ -71,8 +72,6 @@ export async function markAsRead(clientId: string, role: "client" | "admin") {
   }
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-
 export async function notifyAdminByEmail(
   message: string,
   senderName: string,
@@ -80,7 +79,7 @@ export async function notifyAdminByEmail(
   senderEmail: string
 ) {
   try {
-    const res = await fetch(`${API_URL}/api/support-email`, {
+    const res = await fetch(`${API_BASE}/api/support-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, senderName, clientName, senderEmail }),

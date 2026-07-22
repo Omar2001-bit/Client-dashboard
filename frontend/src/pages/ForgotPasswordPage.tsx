@@ -5,8 +5,7 @@ import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
 import { Alert } from "@/components/ui/Alert";
 import { ArrowLeft, CheckCircle } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+import { API_BASE } from "@/lib/apiClient";
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -19,7 +18,7 @@ export function ForgotPasswordPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/send-password-reset`, {
+      const res = await fetch(`${API_BASE}/api/send-password-reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

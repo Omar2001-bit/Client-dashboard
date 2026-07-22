@@ -14,7 +14,7 @@ import { useAuthStore } from "@/store/authStore";
 import { ClientDashboardSettingsPage } from "@/pages/admin/ClientDashboardSettingsPage";
 import { ClientTimelineEditorPage } from "@/pages/admin/ClientTimelineEditorPage";
 import { AdminAuditFindingsPage } from "@/pages/admin/AdminAuditFindingsPage";
-import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
+import { API_BASE, fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 
 export function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -172,7 +172,7 @@ export function ClientDetailPage() {
       if (usersSnap.empty) throw new Error("No user account found for this client.");
       const userEmail = usersSnap.docs[0].data().email as string;
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3001"}/api/send-password-reset`, {
+      const res = await fetch(`${API_BASE}/api/send-password-reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userEmail, clientName: client?.contactName }),

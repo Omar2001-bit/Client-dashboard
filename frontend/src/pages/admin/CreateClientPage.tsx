@@ -10,7 +10,7 @@ import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { CreateClientFormData, GA4Property } from "@/types";
-import { fetchWithAuth } from "@/lib/apiClient";
+import { API_BASE, fetchWithAuth } from "@/lib/apiClient";
 
 export function CreateClientPage() {
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ export function CreateClientPage() {
           const execSnap = await getDocs(query(collection(db, "users"), where("role", "==", "executiveAdmin")));
           if (!execSnap.empty) {
             const execAdmin = execSnap.docs[0].data();
-            const resp = await fetch("http://localhost:3001/api/notify-executive-admin", {
+            const resp = await fetch(`${API_BASE}/api/notify-executive-admin`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
