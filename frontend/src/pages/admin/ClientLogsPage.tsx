@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback, useSyncExternalStore } from "react";
 import { useSearchParams } from "react-router-dom";
 import { collection, onSnapshot, orderBy, query, limit, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Chip } from "@/components/ui/Chip";
 import { ArrowLeft, Activity, Eye, EyeOff, Search, Calendar, ToggleLeft, BarChart2, ArrowUpDown, MessageSquare, Clock, Globe, Users, Wifi, ExternalLink, ChevronRight, RefreshCw, Shield, LayoutDashboard, FlaskConical, Download, FileText, Play, SkipForward, X, ListChecks, Filter } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
 import type { ClientDoc } from "@/types";
@@ -558,26 +559,63 @@ function ClientSelector({ onSelect }: { onSelect: (client: ClientDoc) => void })
 
 // ── Log viewer ────────────────────────────────────────────────────────────────
 
+interface LogsSnapshot {
+  logs: LogEntry[];
+  loading: boolean;
+}
+
+/**
+ * Subscribes to Firestore via useSyncExternalStore instead of useState+useEffect.
+ * onSnapshot pushes updates from outside React's render cycle, which under
+ * concurrent rendering (StrictMode) can tear this component's other state
+ * (selectedTypes) across renders — useSyncExternalStore is React's prescribed
+ * fix for exactly this class of external-store subscription.
+ */
+function useActivityLogs(clientId: string): LogsSnapshot {
+  const snapshotRef = useRef<LogsSnapshot>({ logs: [], loading: true });
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      snapshotRef.current = { logs: [], loading: true };
+      const q = query(
+        collection(db, "clients", clientId, "activityLogs"),
+        orderBy("timestamp", "desc"),
+        limit(500)
+      );
+      return onSnapshot(q, (snap) => {
+        snapshotRef.current = {
+          logs: snap.docs.map((d) => ({ id: d.id, ...d.data() } as LogEntry)),
+          loading: false,
+        };
+        onStoreChange();
+      });
+    },
+    [clientId]
+  );
+
+  const getSnapshot = useCallback(() => snapshotRef.current, []);
+
+  return useSyncExternalStore(subscribe, getSnapshot);
+}
+
 function LogViewer({ client, onBack }: { client: ClientDoc; onBack: () => void }) {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { logs, loading } = useActivityLogs(client.id);
   const [liveFlash, setLiveFlash] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<ActivityEventType | "all">("all");
+  const [selectedTypes, setSelectedTypes] = useState<Set<ActivityEventType>>(new Set());
+  const toggleType = (type: ActivityEventType) =>
+    setSelectedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
 
   useEffect(() => {
-    const q = query(
-      collection(db, "clients", client.id, "activityLogs"),
-      orderBy("timestamp", "desc"),
-      limit(500)
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setLogs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as LogEntry)));
-      setLoading(false);
-      setLiveFlash(true);
-      setTimeout(() => setLiveFlash(false), 600);
-    });
-    return unsub;
-  }, [client.id]);
+    if (loading) return;
+    setLiveFlash(true);
+    const t = setTimeout(() => setLiveFlash(false), 600);
+    return () => clearTimeout(t);
+  }, [logs, loading]);
 
   // Summary stats
   const stats = useMemo(() => {
@@ -597,8 +635,8 @@ function LogViewer({ client, onBack }: { client: ClientDoc; onBack: () => void }
 
   // Group visible logs by session
   const filtered = useMemo(
-    () => (typeFilter === "all" ? logs : logs.filter((l) => l.type === typeFilter)),
-    [logs, typeFilter]
+    () => (selectedTypes.size === 0 ? logs : logs.filter((l) => selectedTypes.has(l.type))),
+    [logs, selectedTypes]
   );
 
   const grouped = useMemo(() => {
@@ -627,6 +665,18 @@ function LogViewer({ client, onBack }: { client: ClientDoc; onBack: () => void }
           </div>
         </div>
         <div className="flex items-center gap-3" data-tutorial="admin-logs-export">
+          {selectedTypes.size > 0 && (
+            <span className="flex items-center gap-1.5 rounded-full bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-700">
+              <Filter className="h-3.5 w-3.5" />
+              {selectedTypes.size} filter{selectedTypes.size !== 1 ? "s" : ""} active
+              <button
+                onClick={() => setSelectedTypes(new Set())}
+                className="font-semibold text-brand-800 hover:underline"
+              >
+                Clear
+              </button>
+            </span>
+          )}
           <span className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${liveFlash ? "text-emerald-500" : "text-ink/40"}`}>
             <Wifi className="h-3.5 w-3.5" />
             Live
@@ -660,23 +710,16 @@ function LogViewer({ client, onBack }: { client: ClientDoc; onBack: () => void }
       </div>
 
       {/* Type filter */}
-      <div className="border-b border-ink/10 bg-white px-8 py-2 flex items-center gap-2 overflow-x-auto shrink-0" data-tutorial="admin-logs-filters">
-        <button
-          onClick={() => setTypeFilter("all")}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${typeFilter === "all" ? "bg-ink text-white" : "text-ink/50 hover:bg-ink/5"}`}
-        >
+      <div className="border-b border-ink/10 bg-white px-8 py-2 flex flex-wrap items-center gap-1.5 shrink-0" data-tutorial="admin-logs-filters">
+        <Chip active={selectedTypes.size === 0} onClick={() => setSelectedTypes(new Set())}>
           All events
-        </button>
+        </Chip>
         {(Object.keys(EVENT_CONFIG) as ActivityEventType[]).map((type) => {
           const cfg = EVENT_CONFIG[type];
           return (
-            <button
-              key={type}
-              onClick={() => setTypeFilter(type)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${typeFilter === type ? "bg-ink text-white" : "text-ink/50 hover:bg-ink/5"}`}
-            >
+            <Chip key={type} active={selectedTypes.has(type)} onClick={() => toggleType(type)}>
               {cfg.label}
-            </button>
+            </Chip>
           );
         })}
       </div>
@@ -696,7 +739,7 @@ function LogViewer({ client, onBack }: { client: ClientDoc; onBack: () => void }
         )}
 
         {grouped.map((group, gi) => (
-          <div key={group.sessionId}>
+          <div key={`${group.sessionId}_${group.events[0]?.id ?? gi}`}>
             {/* Session divider */}
             <div className="flex items-center gap-3 mb-3">
               <div className="h-px flex-1 bg-ink/10" />
