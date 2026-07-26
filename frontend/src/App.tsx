@@ -22,6 +22,8 @@ import { ExperimentListPage } from "@/pages/dashboard/ExperimentListPage";
 import { GA4DataViewPage } from "@/pages/dashboard/GA4DataViewPage";
 import { GA4DashboardPage } from "@/pages/dashboard/GA4DashboardPage";
 import { GA4ExperimentsPage } from "@/pages/dashboard/GA4ExperimentsPage";
+import { PageSpeedPage } from "@/pages/dashboard/PageSpeedPage";
+import { PageSpeedComparePage } from "@/pages/dashboard/PageSpeedComparePage";
 import { BookMeetingPage } from "@/pages/dashboard/BookMeetingPage";
 import { ProfilePage } from "@/pages/dashboard/ProfilePage";
 import { TimelinePage } from "@/pages/dashboard/TimelinePage";
@@ -84,6 +86,8 @@ function App() {
             <Route path="ga4" element={<GA4DataViewPage />} />
             <Route path="ga4/dashboard" element={<GA4DashboardPage />} />
             <Route path="ga4/experiments" element={<GA4ExperimentsPage />} />
+            <Route path="page-speed" element={<PageSpeedPage />} />
+            <Route path="page-speed/compare" element={<PageSpeedComparePage />} />
             <Route path="audit-findings" element={<AuditFindingsPage />} />
             <Route path="analytics-reports" element={<AnalyticsReportsPage />} />
             <Route path="analytics-reports/:reportId" element={<AnalyticsReportViewPage />} />

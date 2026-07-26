@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOpen, User, BarChart3, ListChecks, LineChart, ClipboardList } from "lucide-react";
+import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOpen, User, BarChart3, ListChecks, LineChart, ClipboardList, Gauge } from "lucide-react";
 import { useLogout } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useTutorial } from "@/hooks/useTutorial";
@@ -13,6 +13,7 @@ import { useClickUpConnected } from "@/hooks/useClientTimeline";
 const baseNavItems = [
   { to: "/dashboard/ab-testing", icon: FlaskConical, label: "A/B Testing Results", end: true },
   { to: "/dashboard/ga4", icon: BarChart3, label: "GA4 Data View" },
+  { to: "/dashboard/page-speed", icon: Gauge, label: "Page Speed" },
   { to: "/dashboard/timeline", icon: CalendarDays, label: "Timeline" },
   { to: "/dashboard/book-meeting", icon: CalendarPlus, label: "Book a Meeting" },
   { to: "/dashboard/support", icon: MessageSquare, label: "Support" },

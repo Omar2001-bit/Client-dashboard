@@ -46,7 +46,8 @@
       "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\);process.stdin.on\\('end',\\(\\)=>{const p=JSON.parse\\(s\\);console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)}\\)\")",
       "Bash(node -e ' *)",
       "Bash(netstat -ano)",
-      "Bash(tasklist *)"
+      "Bash(tasklist *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")"
     ]
   },
   "enableAllProjectMcpServers": true,

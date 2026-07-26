@@ -91,6 +91,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // PageSpeed reports: server (Admin SDK) writes via /api/pagespeed/*, clients read their own
+    match /clients/{clientId}/pagespeed/{document=**} {
+      allow read: if isAdmin() || isClientOf(clientId);
+      allow write: if isAdmin();
+    }
+
     // Audit log: admin read, no user writes (Cloud Functions only)
     match /auditLog/{document=**} {
       allow read: if isAdmin();
