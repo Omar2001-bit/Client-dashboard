@@ -3,12 +3,23 @@ import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronRight, X, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui";
-import type { TutorialStep, TutorialPosition } from "@/lib/tutorialSteps";
+import type { TutorialPosition } from "@/lib/tutorialSteps";
 
 interface Rect { top: number; left: number; width: number; height: number; }
 
+/** Structural shape shared by both the client (`TutorialStep`) and admin
+ * (`AdminTutorialStep`) step lists — this component only ever reads these fields. */
+interface TutorialStepLike {
+  title: string;
+  description: string;
+  target: string | null;
+  route: string;
+  position: TutorialPosition;
+  padding?: number;
+}
+
 interface Props {
-  steps: TutorialStep[];
+  steps: TutorialStepLike[];
   currentStep: number;
   onNext: () => void;
   onSkipStep: () => void;

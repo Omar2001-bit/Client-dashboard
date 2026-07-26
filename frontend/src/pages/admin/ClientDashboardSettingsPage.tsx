@@ -6,8 +6,12 @@ import { ArrowLeft, ChevronDown, ChevronUp, Plus, Trash2, Save, RotateCcw } from
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { normalizeExperiments } from "@/pages/dashboard/dashboardData";
+import { RoiPreview } from "@/components/dashboard/RoiPreview";
+import { MetricUpliftTable } from "@/components/dashboard/MetricUpliftTable";
 import type {
   ClientDoc,
   DashboardSettings,
@@ -35,38 +39,6 @@ const EMPTY_UPLIFTS: ExperimentUplifts = {
   cvr: { uplift: 0, upliftPercent: 0, original: 0, bestVariation: 0 },
   aov: { uplift: 0, upliftPercent: 0, original: 0, bestVariation: 0 },
 };
-
-function RoiPreview({ nodeCount }: { nodeCount: number | undefined }) {
-  const preNodes = [0, 0.25, 0.5, 0.75, 1];
-  const postCount = nodeCount ?? 2;
-  const postNodes = Array.from({ length: postCount }, (_, i) => i + 2);
-  const allNodes = [...preNodes, ...postNodes];
-  const max = postNodes.length > 0 ? postNodes[postNodes.length - 1] : 1;
-  const preZone = 30;
-  const toPos = (m: number) =>
-    m <= 1 ? (m / 1) * preZone : preZone + ((m - 1) / Math.max(max - 1, 1)) * (100 - preZone);
-
-  const labels: Record<number, string> = { 0: "0%", 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "Breakeven" };
-
-  return (
-    <div className="relative h-16 mt-6 mx-4">
-      <div className="absolute inset-x-0 top-6 h-2 rounded-full bg-ink/10" />
-      <div className="absolute top-6 h-2 w-[30%] rounded-full bg-brand-400/60" />
-      {allNodes.map((m) => (
-        <div
-          key={m}
-          className="absolute flex flex-col items-center"
-          style={{ left: `${toPos(m)}%`, transform: "translateX(-50%)" }}
-        >
-          <span className="text-[9px] text-ink/40 mb-1 whitespace-nowrap">
-            {labels[m] ?? `${m}x`}
-          </span>
-          <div className="w-0.5 h-3 bg-ink/30 mt-5" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: boolean }) {
   const { clientId } = useParams<{ clientId: string }>();
@@ -282,11 +254,11 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
       <Card>
         <CardHeader className="flex items-center justify-between">
           <h2 className="font-semibold text-ink">Experiment Settings</h2>
-          <input
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search experiments…"
-            className="rounded-lg border border-ink/10 px-3 py-1.5 text-sm focus:outline-none focus:border-brand-300 w-56"
+            className="w-56 py-1.5"
           />
         </CardHeader>
         <CardBody className="p-0 divide-y divide-ink/5">
@@ -351,84 +323,41 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                         onChange={(e) => setOverride(exp.id, { displayName: e.target.value || undefined })}
                         placeholder={exp.name}
                       />
-                      <div className="space-y-1">
-                        <label className="block text-sm font-medium text-ink/80">Original variant</label>
-                        <select
-                          value={override.originalVariantId ?? ""}
-                          onChange={(e) => setOverride(exp.id, { originalVariantId: e.target.value || undefined })}
-                          className="border border-ink/15 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-200"
-                        >
-                          <option value="">Auto (from sync data)</option>
-                          {(exp.variants ?? []).map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name} {v.isOriginal ? "(current original)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <Select
+                        label="Original variant"
+                        value={override.originalVariantId ?? ""}
+                        onChange={(e) => setOverride(exp.id, { originalVariantId: e.target.value || undefined })}
+                      >
+                        <option value="">Auto (from sync data)</option>
+                        {(exp.variants ?? []).map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.name} {v.isOriginal ? "(current original)" : ""}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-sm font-medium text-ink/80">
-                        Notes for client
-                      </label>
-                      <textarea
-                        value={override.notes ?? ""}
-                        onChange={(e) => setOverride(exp.id, { notes: e.target.value || undefined })}
-                        placeholder="e.g. This test ran during a sale period — results may not reflect steady state."
-                        rows={2}
-                        className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-200"
-                      />
-                    </div>
+                    <Textarea
+                      label="Notes for client"
+                      value={override.notes ?? ""}
+                      onChange={(e) => setOverride(exp.id, { notes: e.target.value || undefined })}
+                      placeholder="e.g. This test ran during a sale period — results may not reflect steady state."
+                      rows={2}
+                      className="resize-none"
+                    />
 
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-ink/80">Metric overrides</p>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-xs text-ink/40">
-                              <th className="text-left py-1 font-medium w-24">Metric</th>
-                              <th className="text-left py-1 font-medium">Current uplift</th>
-                              <th className="text-left py-1 font-medium">Override uplift</th>
-                              <th className="text-left py-1 font-medium">Override uplift %</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-ink/5">
-                            {METRICS.map(({ key, label }) => {
-                              const current = exp.uplifts?.[key];
-                              const mo = override.metricOverrides?.[key];
-                              return (
-                                <tr key={key}>
-                                  <td className="py-1.5 font-medium text-ink/70">{label}</td>
-                                  <td className="py-1.5 text-ink/40 pr-4">
-                                    {current ? `${current.uplift >= 0 ? "+" : ""}${current.uplift.toFixed(2)}` : "—"}
-                                  </td>
-                                  <td className="py-1.5 pr-2">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={mo?.uplift ?? ""}
-                                      onChange={(e) => setMetricOverride(exp.id, key, "uplift", e.target.value)}
-                                      placeholder="—"
-                                      className="w-28 rounded-lg border border-ink/10 px-2 py-1 text-sm focus:outline-none focus:border-brand-300"
-                                    />
-                                  </td>
-                                  <td className="py-1.5">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={mo?.upliftPercent ?? ""}
-                                      onChange={(e) => setMetricOverride(exp.id, key, "upliftPercent", e.target.value)}
-                                      placeholder="—"
-                                      className="w-28 rounded-lg border border-ink/10 px-2 py-1 text-sm focus:outline-none focus:border-brand-300"
-                                    />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                      <MetricUpliftTable
+                        metrics={METRICS}
+                        getCurrent={(key) => exp.uplifts?.[key]}
+                        getOverrideUplift={(key) => override.metricOverrides?.[key]?.uplift}
+                        getOverridePercent={(key) => override.metricOverrides?.[key]?.upliftPercent}
+                        onUpliftChange={(key, value) => setMetricOverride(exp.id, key, "uplift", value)}
+                        onPercentChange={(key, value) => setMetricOverride(exp.id, key, "upliftPercent", value)}
+                        upliftLabel="Override uplift"
+                        percentLabel="Override uplift %"
+                      />
                     </div>
                   </div>
                 )}
@@ -460,101 +389,60 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-ink/70">Name</label>
-                  <input
-                    value={m.name}
-                    onChange={(e) => setLocal((prev) => ({
-                      ...prev,
-                      manualExperiments: (prev.manualExperiments ?? []).map((x) =>
-                        x.id !== m.id ? x : { ...x, name: e.target.value }
-                      ),
-                    }))}
-                    className="w-full rounded-lg border border-ink/10 px-2 py-1.5 text-sm focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-ink/70">Start date</label>
-                  <input
-                    type="date"
-                    value={m.startDate}
-                    onChange={(e) => setLocal((prev) => ({
-                      ...prev,
-                      manualExperiments: (prev.manualExperiments ?? []).map((x) =>
-                        x.id !== m.id ? x : { ...x, startDate: e.target.value }
-                      ),
-                    }))}
-                    className="w-full rounded-lg border border-ink/10 px-2 py-1.5 text-sm focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-ink/70">Status</label>
-                  <select
-                    value={m.status}
-                    onChange={(e) => setLocal((prev) => ({
-                      ...prev,
-                      manualExperiments: (prev.manualExperiments ?? []).map((x) =>
-                        x.id !== m.id ? x : { ...x, status: e.target.value as ManualExperiment["status"] }
-                      ),
-                    }))}
-                    className="w-full rounded-lg border border-ink/10 px-2 py-1.5 text-sm focus:outline-none"
-                  >
-                    {["running", "completed", "paused", "draft", "archived"].map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-ink/70">Notes</label>
-                <input
-                  value={m.notes ?? ""}
+                <Input
+                  label="Name"
+                  value={m.name}
                   onChange={(e) => setLocal((prev) => ({
                     ...prev,
                     manualExperiments: (prev.manualExperiments ?? []).map((x) =>
-                      x.id !== m.id ? x : { ...x, notes: e.target.value || undefined }
+                      x.id !== m.id ? x : { ...x, name: e.target.value }
                     ),
                   }))}
-                  placeholder="Optional notes…"
-                  className="w-full rounded-lg border border-ink/10 px-2 py-1.5 text-sm focus:outline-none"
                 />
+                <Input
+                  label="Start date"
+                  type="date"
+                  value={m.startDate}
+                  onChange={(e) => setLocal((prev) => ({
+                    ...prev,
+                    manualExperiments: (prev.manualExperiments ?? []).map((x) =>
+                      x.id !== m.id ? x : { ...x, startDate: e.target.value }
+                    ),
+                  }))}
+                />
+                <Select
+                  label="Status"
+                  value={m.status}
+                  onChange={(e) => setLocal((prev) => ({
+                    ...prev,
+                    manualExperiments: (prev.manualExperiments ?? []).map((x) =>
+                      x.id !== m.id ? x : { ...x, status: e.target.value as ManualExperiment["status"] }
+                    ),
+                  }))}
+                >
+                  {["running", "completed", "paused", "draft", "archived"].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </Select>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-ink/40">
-                      <th className="text-left py-1 font-medium w-24">Metric</th>
-                      <th className="text-left py-1 font-medium">Uplift</th>
-                      <th className="text-left py-1 font-medium">Uplift %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ink/5">
-                    {METRICS.map(({ key, label }) => (
-                      <tr key={key}>
-                        <td className="py-1 font-medium text-ink/70">{label}</td>
-                        <td className="py-1 pr-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={m.uplifts[key]?.uplift ?? ""}
-                            onChange={(e) => setManualMetric(m.id, key, "uplift", e.target.value)}
-                            className="w-28 rounded-lg border border-ink/10 px-2 py-1 text-sm focus:outline-none"
-                          />
-                        </td>
-                        <td className="py-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={m.uplifts[key]?.upliftPercent ?? ""}
-                            onChange={(e) => setManualMetric(m.id, key, "upliftPercent", e.target.value)}
-                            className="w-28 rounded-lg border border-ink/10 px-2 py-1 text-sm focus:outline-none"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Input
+                label="Notes"
+                value={m.notes ?? ""}
+                onChange={(e) => setLocal((prev) => ({
+                  ...prev,
+                  manualExperiments: (prev.manualExperiments ?? []).map((x) =>
+                    x.id !== m.id ? x : { ...x, notes: e.target.value || undefined }
+                  ),
+                }))}
+                placeholder="Optional notes…"
+              />
+              <MetricUpliftTable
+                metrics={METRICS}
+                getOverrideUplift={(key) => m.uplifts[key]?.uplift}
+                getOverridePercent={(key) => m.uplifts[key]?.upliftPercent}
+                onUpliftChange={(key, value) => setManualMetric(m.id, key, "uplift", value)}
+                onPercentChange={(key, value) => setManualMetric(m.id, key, "upliftPercent", value)}
+              />
             </div>
           ))}
 
@@ -574,67 +462,35 @@ export function ClientDashboardSettingsPage({ embedded = false }: { embedded?: b
                   value={newManual.startDate}
                   onChange={(e) => setNewManual((p) => ({ ...p, startDate: e.target.value }))}
                 />
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-ink/80">Status</label>
-                  <select
-                    value={newManual.status}
-                    onChange={(e) => setNewManual((p) => ({ ...p, status: e.target.value as ManualExperiment["status"] }))}
-                    className="border border-ink/15 rounded-lg px-3 py-2 text-sm w-full"
-                  >
-                    {["running", "completed", "paused", "draft", "archived"].map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Status"
+                  value={newManual.status}
+                  onChange={(e) => setNewManual((p) => ({ ...p, status: e.target.value as ManualExperiment["status"] }))}
+                >
+                  {["running", "completed", "paused", "draft", "archived"].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </Select>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-ink/40">
-                      <th className="text-left py-1 font-medium w-24">Metric</th>
-                      <th className="text-left py-1 font-medium">Uplift</th>
-                      <th className="text-left py-1 font-medium">Uplift %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ink/5">
-                    {METRICS.map(({ key, label }) => (
-                      <tr key={key}>
-                        <td className="py-1 font-medium text-ink/70">{label}</td>
-                        <td className="py-1 pr-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newManual.uplifts[key]?.uplift ?? 0}
-                            onChange={(e) => setNewManual((p) => ({
-                              ...p,
-                              uplifts: {
-                                ...p.uplifts,
-                                [key]: { ...p.uplifts[key], uplift: parseFloat(e.target.value) || 0 },
-                              },
-                            }))}
-                            className="w-28 rounded-lg border border-ink/10 px-2 py-1 text-sm focus:outline-none"
-                          />
-                        </td>
-                        <td className="py-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newManual.uplifts[key]?.upliftPercent ?? 0}
-                            onChange={(e) => setNewManual((p) => ({
-                              ...p,
-                              uplifts: {
-                                ...p.uplifts,
-                                [key]: { ...p.uplifts[key], upliftPercent: parseFloat(e.target.value) || 0 },
-                              },
-                            }))}
-                            className="w-28 rounded-lg border border-ink/10 px-2 py-1 text-sm focus:outline-none"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <MetricUpliftTable
+                metrics={METRICS}
+                getOverrideUplift={(key) => newManual.uplifts[key]?.uplift}
+                getOverridePercent={(key) => newManual.uplifts[key]?.upliftPercent}
+                onUpliftChange={(key, value) => setNewManual((p) => ({
+                  ...p,
+                  uplifts: {
+                    ...p.uplifts,
+                    [key]: { ...p.uplifts[key], uplift: parseFloat(value) || 0 },
+                  },
+                }))}
+                onPercentChange={(key, value) => setNewManual((p) => ({
+                  ...p,
+                  uplifts: {
+                    ...p.uplifts,
+                    [key]: { ...p.uplifts[key], upliftPercent: parseFloat(value) || 0 },
+                  },
+                }))}
+              />
               <div className="flex gap-2">
                 <Button size="sm" onClick={addManualExperiment} disabled={!newManual.name || !newManual.startDate}>
                   Add

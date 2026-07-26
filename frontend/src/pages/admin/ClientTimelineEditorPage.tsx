@@ -7,6 +7,9 @@ import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { Alert } from "@/components/ui/Alert";
 import { TimelineViewer } from "@/components/timeline/TimelineViewer";
 import { useClientTimeline } from "@/hooks/useClientTimeline";
 import type { ClientDoc, ClientTimelineConfig, ClickUpFolder, ClickUpTask, ClickUpWorkspace, TimelinePhase } from "@/types";
@@ -343,20 +346,20 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                   />
                 </div>
 
-                <div className="mt-4 space-y-1">
-                  <label className="block text-sm font-medium text-ink/80">Description</label>
-                  <textarea
+                <div className="mt-4">
+                  <Textarea
+                    label="Description"
                     value={phase.description ?? ""}
                     onChange={(e) => updatePhase(phase.id, { description: e.target.value })}
                     rows={3}
                     placeholder="Explain what happens during this phase and the expected outcomes."
-                    className="w-full resize-none rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                    className="resize-none"
                   />
                 </div>
 
-                <div className="mt-4 space-y-1">
-                  <label className="block text-sm font-medium text-ink/80">Deliverables</label>
-                  <textarea
+                <div className="mt-4">
+                  <Textarea
+                    label="Deliverables"
                     value={(phase.deliverables ?? []).join("\n")}
                     onChange={(e) =>
                       updatePhase(phase.id, {
@@ -368,7 +371,7 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                     }
                     rows={4}
                     placeholder={"One deliverable per line\nExample: Kickoff plan\nExample: Creative brief"}
-                    className="w-full resize-none rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                    className="resize-none"
                   />
                 </div>
               </div>
@@ -393,51 +396,45 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
           </CardHeader>
           <CardBody className="space-y-4">
             {clickupConfigured === false ? (
-              <div className="rounded-2xl border border-dashed border-ink/15 bg-ink/[0.02] p-6 text-sm text-ink/50">
+              <Alert tone="info">
                 ClickUp isn&apos;t connected yet.{" "}
                 <Link to="/admin/settings" className="text-brand-700 hover:text-brand-800">
                   Save a personal API token in Settings
                 </Link>{" "}
                 first.
-              </div>
+              </Alert>
             ) : (
               <>
                 <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium text-ink/80">Workspace</label>
-                    <select
-                      value={selectedWorkspaceId}
-                      onChange={(e) => {
-                        setSelectedWorkspaceId(e.target.value);
-                        setSelectedFolderId("");
-                        setClickupFolders([]);
-                      }}
-                      className="w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                    >
-                      <option value="">Select a workspace</option>
-                      {clickupWorkspaces.map((workspace) => (
-                        <option key={workspace.id} value={workspace.id}>
-                          {workspace.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium text-ink/80">Folder</label>
-                    <select
-                      value={selectedFolderId}
-                      onChange={(e) => setSelectedFolderId(e.target.value)}
-                      disabled={!selectedWorkspaceId}
-                      className="w-full rounded-xl border border-ink/15 bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-50"
-                    >
-                      <option value="">Whole workspace</option>
-                      {clickupFolders.map((folder) => (
-                        <option key={folder.id} value={folder.id}>
-                          {folder.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <Select
+                    label="Workspace"
+                    value={selectedWorkspaceId}
+                    onChange={(e) => {
+                      setSelectedWorkspaceId(e.target.value);
+                      setSelectedFolderId("");
+                      setClickupFolders([]);
+                    }}
+                  >
+                    <option value="">Select a workspace</option>
+                    {clickupWorkspaces.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Folder"
+                    value={selectedFolderId}
+                    onChange={(e) => setSelectedFolderId(e.target.value)}
+                    disabled={!selectedWorkspaceId}
+                  >
+                    <option value="">Whole workspace</option>
+                    {clickupFolders.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </option>
+                    ))}
+                  </Select>
                   <div className="flex items-end">
                     <Button
                       variant="secondary"
@@ -453,11 +450,7 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                   </div>
                 </div>
 
-                {clickupMessage && (
-                  <div className="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3 text-sm text-ink/60">
-                    {clickupMessage}
-                  </div>
-                )}
+                {clickupMessage && <Alert tone="info">{clickupMessage}</Alert>}
 
                 {hasClickup && (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -493,10 +486,10 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <select
+                            <Select
                               value={clickup.taskAssignments?.[task.id] ?? ""}
                               onChange={(e) => setTaskAssignment(task.id, e.target.value)}
-                              className="w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                              className="w-full"
                             >
                               <option value="">Unassigned</option>
                               {sortedPhases.map((phase) => (
@@ -504,7 +497,7 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                                   {phase.title}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                             {task.url && (
                               <a href={task.url} target="_blank" rel="noreferrer" className="text-ink/40 hover:text-ink">
                                 <ExternalLink className="h-4 w-4" />

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Trash2, RotateCcw, CheckCircle2, XCircle, RefreshCcw, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { Textarea } from "@/components/ui/Textarea";
 import { AuditSeverityBadge } from "@/components/ui/AuditSeverityBadge";
 import { FixProgressBadge } from "@/components/ui/FixProgressBadge";
 import type { AuditFindingDoc, FixProgressStatus } from "@/types";
@@ -183,12 +184,12 @@ export function AuditFindingDetail({
         <>
           <div>
             <h3 className="text-sm font-semibold text-ink">My notes</h3>
-            <textarea
+            <Textarea
               value={noteDraft}
               onChange={(e) => handleNoteChange(e.target.value)}
               rows={3}
               placeholder="Add a note visible to other admins…"
-              className="mt-1 w-full rounded-xl border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+              className="mt-1"
             />
           </div>
 

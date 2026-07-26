@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ListChecks, Plus, Upload } from "lucide-react";
 import { KPICard } from "@/components/ui/KPICard";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { AuditFindingFilters } from "@/components/auditFindings/AuditFindingFilters";
 import { AuditFindingList } from "@/components/auditFindings/AuditFindingList";
 import { AuditFindingDetail } from "@/components/auditFindings/AuditFindingDetail";
@@ -151,15 +152,15 @@ export function AdminAuditFindingsPage() {
         <Button variant="primary" size="sm" onClick={() => setFormOpen("create")} className="flex items-center gap-1.5">
           <Plus className="h-4 w-4" /> New finding
         </Button>
-        <select
+        <Select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as AuditFindingSortKey)}
-          className="rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-200"
+          className="sm:w-48"
         >
           <option value="severity">Sort by severity</option>
           <option value="tool">Sort by tool</option>
           <option value="progress">Sort by progress</option>
-        </select>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] rounded-brand border border-ink/10 bg-white overflow-hidden" style={{ height: "70vh" }}>

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Logo } from "@/components/ui/Logo";
 import { Alert } from "@/components/ui/Alert";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { API_BASE } from "@/lib/apiClient";
 
@@ -41,42 +41,9 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-ink rounded-2xl mb-4 text-brand-500">
-            <Logo variant="mark" className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-ink tracking-tight">Reset password</h1>
-        </div>
-
-        <div className="bg-white rounded-brand border border-ink/10 shadow-card p-6">
-          {sent ? (
-            <div className="text-center space-y-3">
-              <CheckCircle className="h-10 w-10 text-brand-600 mx-auto" />
-              <p className="font-medium text-ink">Check your inbox</p>
-              <p className="text-sm text-ink/50">
-                A password reset link was sent to <strong>{email}</strong>. It expires in 1 hour.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Email address"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              {error && <Alert tone="danger">{error}</Alert>}
-              <Button type="submit" className="w-full" loading={loading}>
-                Send reset link
-              </Button>
-            </form>
-          )}
-        </div>
-
+    <AuthShell
+      title="Reset password"
+      footer={
         <Link
           to="/"
           className="mt-4 flex items-center justify-center gap-1 text-sm text-ink/50 hover:text-ink"
@@ -84,7 +51,32 @@ export function ForgotPasswordPage() {
           <ArrowLeft className="h-4 w-4" />
           Back to sign in
         </Link>
-      </div>
-    </div>
+      }
+    >
+      {sent ? (
+        <div className="text-center space-y-3">
+          <CheckCircle className="h-10 w-10 text-brand-600 mx-auto" />
+          <p className="font-medium text-ink">Check your inbox</p>
+          <p className="text-sm text-ink/50">
+            A password reset link was sent to <strong>{email}</strong>. It expires in 1 hour.
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          {error && <Alert tone="danger">{error}</Alert>}
+          <Button type="submit" className="w-full" loading={loading}>
+            Send reset link
+          </Button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

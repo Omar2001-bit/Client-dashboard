@@ -1,38 +1,5 @@
-import { Link } from "react-router-dom";
-import { BarChart3, FlaskConical, ArrowRight } from "lucide-react";
-
-function ChoiceCard({
-  to,
-  title,
-  description,
-  icon: Icon,
-}: {
-  to: string;
-  title: string;
-  description: string;
-  icon: typeof BarChart3;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group rounded-3xl border border-ink/10 bg-white p-6 shadow-[0_12px_30px_rgba(22,42,61,0.06)] transition-transform hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(22,42,61,0.1)]"
-    >
-      <div className="flex items-start gap-4">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-ink/[0.04]">
-          <Icon className="h-6 w-6 text-ink" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-lg font-semibold text-ink">{title}</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink/60">{description}</p>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-ink/[0.03] px-4 py-2 text-sm font-medium text-ink/70 group-hover:text-ink">
-            Open view
-            <ArrowRight className="h-4 w-4" />
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
+import { BarChart3, FlaskConical } from "lucide-react";
+import { ChoiceCard } from "@/components/ui";
 
 export function GA4DataViewPage() {
   return (

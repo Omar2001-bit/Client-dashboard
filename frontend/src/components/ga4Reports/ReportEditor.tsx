@@ -1,6 +1,6 @@
 import { ArrowRight, Check, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 import DatePicker from "./DatePicker";
 import MetaPicker from "./MetaPicker";
 import { getGa4ReportsValues } from "@/lib/ga4Reports/api";
@@ -45,9 +45,6 @@ interface Props {
 }
 
 const labelCls = "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/50";
-const inputCls =
-  "focus-ring w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink transition-colors duration-150 hover:border-ink/30 focus:border-brand-500";
-const selectCls = inputCls;
 const smallFieldCls =
   "focus-ring rounded-lg border border-ink/15 bg-white px-2 py-1.5 text-xs text-ink transition-colors duration-150 hover:border-ink/30 focus:border-brand-500";
 
@@ -169,12 +166,11 @@ export default function ReportEditor({
     <aside className="animate-rise-in w-full shrink-0 space-y-5 rounded-2xl border border-ink/10 bg-white p-5 lg:w-[21rem]">
       <div>
         <label className={labelCls}>Report name</label>
-        <input className={inputCls} value={config.name} onChange={(e) => set({ name: e.target.value })} />
+        <Input value={config.name} onChange={(e) => set({ name: e.target.value })} />
       </div>
       <div>
         <label className={labelCls}>Description</label>
-        <input
-          className={inputCls}
+        <Input
           value={config.description ?? ""}
           placeholder="What this report answers…"
           onChange={(e) => set({ description: e.target.value })}
@@ -182,8 +178,7 @@ export default function ReportEditor({
       </div>
       <div>
         <label className={labelCls}>Group</label>
-        <input
-          className={inputCls}
+        <Input
           value={config.group ?? ""}
           placeholder="e.g. Client A, Weekly reports…"
           list="existing-groups"
@@ -201,13 +196,13 @@ export default function ReportEditor({
       </div>
       <div>
         <label className={labelCls}>GA4 property</label>
-        <select className={selectCls} value={config.property} onChange={(e) => set({ property: e.target.value })}>
+        <Select value={config.property} onChange={(e) => set({ property: e.target.value })}>
           {properties.map((p) => (
             <option key={p.propertyId} value={`properties/${p.propertyId}`}>
               {p.displayName} — {p.propertyId}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div>
@@ -560,8 +555,7 @@ export default function ReportEditor({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Default chart</label>
-          <select
-            className={selectCls}
+          <Select
             value={config.chartType}
             onChange={(e) => set({ chartType: e.target.value as Ga4ReportDoc["chartType"] })}
           >
@@ -570,15 +564,15 @@ export default function ReportEditor({
                 {c.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <label className={labelCls}>Row limit</label>
-          <input
+          <Input
             type="number"
             min={1}
             max={1000}
-            className={`${inputCls} tabular-nums`}
+            className="tabular-nums"
             value={config.limit}
             onChange={(e) => set({ limit: Math.max(1, Math.min(1000, Number(e.target.value) || 25)) })}
           />

@@ -4,8 +4,18 @@ import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import {
+  SCORE_METRICS as BASE_SCORE_METRICS,
+  VITAL_METRICS as BASE_VITAL_METRICS,
+  explainMetric,
+  formatMetricValue,
+  metricUnitForKey,
+  toHumanLabel,
+} from "@/lib/pageSpeedMetrics";
+import { formatMs, formatCls } from "@/lib/pageSpeedScoreColor";
 import {
   ArrowLeft,
   GitCompareArrows,
@@ -13,11 +23,7 @@ import {
   Square,
   BarChart3,
   Gauge,
-  Eye,
-  Shield,
-  Search,
   Zap,
-  Clock,
   Monitor,
   Smartphone,
   ChevronDown,
@@ -121,17 +127,6 @@ function vitalBarColor(metric: string, value: number | null): string {
   return "#6b7280";
 }
 
-function formatMs(ms: number | null): string {
-  if (ms == null) return "—";
-  if (ms < 1000) return `${Math.round(ms)} ms`;
-  return `${(ms / 1000).toFixed(1)} s`;
-}
-
-function formatCls(value: number | null): string {
-  if (value == null) return "—";
-  return value.toFixed(3);
-}
-
 function formatDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString("en-US", {
@@ -162,84 +157,31 @@ interface MetricConfig {
   colorFn: (v: number | null) => string;
 }
 
-const SCORE_METRICS: MetricConfig[] = [
-  { key: "performance", label: "Performance", fullLabel: "Performance Score", description: "Overall loading speed and runtime responsiveness score.", icon: Zap, format: (v) => v != null ? String(Math.round(v)) : "—", unit: "/100", isScore: true, colorFn: (v) => scoreBarColor(v ?? 0) },
-  { key: "accessibility", label: "Accessibility", fullLabel: "Accessibility Score", description: "Automated accessibility checks for inclusive UX quality.", icon: Eye, format: (v) => v != null ? String(Math.round(v)) : "—", unit: "/100", isScore: true, colorFn: (v) => scoreBarColor(v ?? 0) },
-  { key: "seo", label: "SEO", fullLabel: "SEO Score", description: "Search discoverability and metadata best-practice signals.", icon: Search, format: (v) => v != null ? String(Math.round(v)) : "—", unit: "/100", isScore: true, colorFn: (v) => scoreBarColor(v ?? 0) },
-  { key: "bestPractices", label: "Best Practices", fullLabel: "Best Practices Score", description: "Security and modern web implementation quality checks.", icon: Shield, format: (v) => v != null ? String(Math.round(v)) : "—", unit: "/100", isScore: true, colorFn: (v) => scoreBarColor(v ?? 0) },
-];
+// Reuse the shared score/vital metadata (label/fullLabel/description/icon) from
+// lib/pageSpeedMetrics.ts and layer on this page's chart-specific format/colorFn.
+const SCORE_METRICS: MetricConfig[] = BASE_SCORE_METRICS.map((m) => ({
+  key: m.key,
+  label: m.label,
+  fullLabel: m.fullLabel,
+  description: m.description,
+  icon: m.icon,
+  format: (v: number | null) => (v != null ? String(Math.round(v)) : "—"),
+  unit: "/100",
+  isScore: true,
+  colorFn: (v: number | null) => scoreBarColor(v ?? 0),
+}));
 
-const VITAL_METRICS: MetricConfig[] = [
-  { key: "lcp", label: "LCP", fullLabel: "Largest Contentful Paint", description: "Time until the largest above-the-fold content is rendered.", icon: Clock, format: formatMs, unit: "", isScore: false, colorFn: (v) => vitalBarColor("lcp", v) },
-  { key: "fcp", label: "FCP", fullLabel: "First Contentful Paint", description: "Time until first text/image appears on screen.", icon: Clock, format: formatMs, unit: "", isScore: false, colorFn: (v) => vitalBarColor("fcp", v) },
-  { key: "cls", label: "CLS", fullLabel: "Cumulative Layout Shift", description: "Visual stability score from unexpected layout movement.", icon: Clock, format: formatCls, unit: "", isScore: false, colorFn: (v) => vitalBarColor("cls", v) },
-  { key: "tbt", label: "TBT", fullLabel: "Total Blocking Time", description: "Main-thread blocking time that harms interactivity.", icon: Clock, format: formatMs, unit: "", isScore: false, colorFn: (v) => vitalBarColor("tbt", v) },
-  { key: "si", label: "SI", fullLabel: "Speed Index", description: "How fast the page becomes visually complete.", icon: Clock, format: formatMs, unit: "", isScore: false, colorFn: (v) => vitalBarColor("si", v) },
-  { key: "inp", label: "INP", fullLabel: "Interaction to Next Paint", description: "Latency from user action to rendered feedback.", icon: Clock, format: formatMs, unit: "", isScore: false, colorFn: (v) => vitalBarColor("inp", v) },
-];
-
-const METRIC_EXPLANATIONS: Record<string, string> = {
-  "largest-contentful-paint": "Time until the largest visible content element is rendered.",
-  "first-contentful-paint": "Time until the first piece of DOM content appears on screen.",
-  "speed-index": "How quickly the page visually fills with content.",
-  "total-blocking-time": "How long main-thread blocking prevents user interaction.",
-  "interaction-to-next-paint": "Latency from interaction to next visual paint.",
-  "cumulative-layout-shift": "Visual stability score from unexpected layout movement.",
-  "server-response-time": "Back-end responsiveness to the initial HTML request.",
-  "max-potential-fid": "Estimated worst-case first input delay under load.",
-  "bootup-time": "Main-thread JavaScript startup execution time.",
-  "mainthread-work-breakdown": "Total time spent on script/style/layout/paint tasks.",
-  "unused-javascript": "Estimated savings from removing unused JS bytes.",
-  "unused-css-rules": "Estimated savings from removing unused CSS bytes.",
-  "render-blocking-resources": "Delay caused by blocking CSS/JS resources.",
-  "unminified-javascript": "Estimated savings if JavaScript were minified.",
-  "unminified-css": "Estimated savings if CSS were minified.",
-  "uses-optimized-images": "Estimated savings from better image compression.",
-  "uses-responsive-images": "Estimated savings from serving right-sized responsive images.",
-  "efficient-animated-content": "Estimated savings from optimized animated image/video formats.",
-  "modern-image-formats": "Estimated savings from next-generation image formats.",
-  "offscreen-images": "Estimated savings from lazy-loading below-the-fold images.",
-  "duplicated-javascript": "Estimated savings from reducing duplicated JavaScript modules.",
-  "legacy-javascript": "Potential savings from avoiding legacy JavaScript for modern browsers.",
-  "dom-size": "DOM complexity and depth that can slow style, layout, and scripting.",
-  "third-party-summary": "Main-thread and transfer cost from third-party scripts.",
-  "third-party-facades": "Opportunities to delay expensive third-party embeds with facades.",
-  redirects: "Extra navigation redirects before the final document loads.",
-  "uses-text-compression": "Estimated savings from gzip, Brotli, or similar text compression.",
-  "uses-long-cache-ttl": "Static resources that could use longer browser cache lifetimes.",
-  "total-byte-weight": "Total transferred resource weight for the page.",
-  "network-requests": "Number and size of network requests made during load.",
-  "critical-request-chains": "Render-critical dependency chains that delay first paint.",
-  "resource-summary": "Transfer size and request counts by resource type.",
-  "font-display": "Whether web fonts keep text visible while font files load.",
-  "layout-shifts": "Elements contributing to layout movement.",
-  "lcp-lazy-loaded": "Whether the LCP image was delayed by lazy-loading.",
-  "prioritize-lcp-image": "Whether the LCP image should be prioritized.",
-  "uses-rel-preconnect": "Origins that could benefit from early connection setup.",
-  "uses-rel-preload": "Critical resources that could be preloaded earlier.",
-};
-
-function toHumanLabel(key: string): string {
-  return key
-    .split("-")
-    .map((p) => (p.length <= 3 ? p.toUpperCase() : p.charAt(0).toUpperCase() + p.slice(1)))
-    .join(" ");
-}
-
-function metricUnitForKey(key: string): "ms" | "s" | "bytes" | "score" | "number" {
-  if (key.includes("layout-shift")) return "score";
-  if (key.includes("time") || key.includes("paint") || key.includes("fid") || key.includes("blocking")) return "ms";
-  if (key.includes("byte") || key.includes("javascript") || key.includes("css") || key.includes("resource")) return "bytes";
-  return "number";
-}
-
-function formatMetricValue(value: number | null | undefined, unit: ReturnType<typeof metricUnitForKey>): string {
-  if (value == null || !Number.isFinite(value)) return "—";
-  if (unit === "ms") return value < 1000 ? `${Math.round(value)} ms` : `${(value / 1000).toFixed(2)} s`;
-  if (unit === "bytes") return `${Math.round(value).toLocaleString()} B`;
-  if (unit === "score") return value.toFixed(3);
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
+const VITAL_METRICS: MetricConfig[] = BASE_VITAL_METRICS.map((m) => ({
+  key: m.key,
+  label: m.label,
+  fullLabel: m.fullLabel,
+  description: m.description,
+  icon: m.icon,
+  format: m.unit === "score" ? formatCls : formatMs,
+  unit: "",
+  isScore: false,
+  colorFn: (v: number | null) => vitalBarColor(m.key, v),
+}));
 
 /* ── Custom tooltip ────────────────────────────────────────────────────── */
 
@@ -630,7 +572,7 @@ export function PageSpeedComparePage() {
                       <CardHeader>
                         <h3 className="font-semibold text-sm text-ink">{toHumanLabel(metricKey)}</h3>
                         <p className="mt-1 text-xs text-ink/45">
-                          {METRIC_EXPLANATIONS[metricKey] ?? "Lighthouse audit metric from PageSpeed Insights."}
+                          {explainMetric(metricKey)}
                         </p>
                       </CardHeader>
                       <CardBody>
@@ -689,36 +631,36 @@ export function PageSpeedComparePage() {
             {expandedPages && (
               <CardBody className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-ink/10 bg-ink/[0.02] text-left">
-                        <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-ink/50 sticky left-0 bg-ink/[0.02]">
+                  <Table>
+                    <THead>
+                      <TR className="bg-ink/[0.02] hover:bg-transparent">
+                        <TH className="px-5 py-3 sticky left-0 bg-ink/[0.02]">
                           Page
-                        </th>
+                        </TH>
                         {selectedRuns.map((run, i) => (
-                          <th
+                          <TH
                             key={run.id}
                             colSpan={4}
-                            className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider border-l border-ink/10"
+                            className="px-3 py-3 text-center border-l border-ink/10"
                             style={{ color: RUN_COLORS[i % RUN_COLORS.length] }}
                           >
                             {shortRunLabel(run.name)}
-                          </th>
+                          </TH>
                         ))}
-                      </tr>
-                      <tr className="border-b border-ink/5 bg-ink/[0.01]">
-                        <th className="px-5 py-2 sticky left-0 bg-ink/[0.01]" />
+                      </TR>
+                      <TR className="bg-ink/[0.01] hover:bg-transparent">
+                        <TH className="px-5 py-2 sticky left-0 bg-ink/[0.01]" />
                         {selectedRuns.map((run) => (
                           <Fragment key={`sub-${run.id}`}>
-                            <th className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest text-ink/30 border-l border-ink/10">Perf</th>
-                            <th className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest text-ink/30">A11y</th>
-                            <th className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest text-ink/30">SEO</th>
-                            <th className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest text-ink/30">LCP</th>
+                            <TH className="px-2 py-2 text-[10px] tracking-widest text-ink/30 border-l border-ink/10">Perf</TH>
+                            <TH className="px-2 py-2 text-[10px] tracking-widest text-ink/30">A11y</TH>
+                            <TH className="px-2 py-2 text-[10px] tracking-widest text-ink/30">SEO</TH>
+                            <TH className="px-2 py-2 text-[10px] tracking-widest text-ink/30">LCP</TH>
                           </Fragment>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
+                      </TR>
+                    </THead>
+                    <TBody>
                       {allUrls.map((url) => {
                         let urlPath: string;
                         try {
@@ -728,46 +670,46 @@ export function PageSpeedComparePage() {
                         }
 
                         return (
-                          <tr key={url} className="border-b border-ink/5 hover:bg-ink/[0.01] transition-colors">
-                            <td className="px-5 py-3 sticky left-0 bg-white">
+                          <TR key={url} className="hover:bg-ink/[0.01]">
+                            <TD className="px-5 py-3 sticky left-0 bg-white">
                               <span className="text-ink/70 truncate block max-w-[240px]" title={url}>
                                 {urlPath}
                               </span>
-                            </td>
+                            </TD>
                             {selectedRuns.map((run) => {
                               const pageResult = run.results.find((r) => r.url === url);
                               if (!pageResult?.scores) {
                                 return (
                                   <Fragment key={`${run.id}-${url}`}>
-                                    <td className="px-2 py-3 text-center text-ink/20 border-l border-ink/10">—</td>
-                                    <td className="px-2 py-3 text-center text-ink/20">—</td>
-                                    <td className="px-2 py-3 text-center text-ink/20">—</td>
-                                    <td className="px-2 py-3 text-center text-ink/20">—</td>
+                                    <TD className="px-2 py-3 text-center text-ink/20 border-l border-ink/10">—</TD>
+                                    <TD className="px-2 py-3 text-center text-ink/20">—</TD>
+                                    <TD className="px-2 py-3 text-center text-ink/20">—</TD>
+                                    <TD className="px-2 py-3 text-center text-ink/20">—</TD>
                                   </Fragment>
                                 );
                               }
                               return (
                                 <Fragment key={`${run.id}-${url}`}>
-                                  <td className="px-2 py-3 text-center font-bold border-l border-ink/10" style={{ color: scoreBarColor(pageResult.scores.performance) }}>
+                                  <TD className="px-2 py-3 text-center font-bold border-l border-ink/10" style={{ color: scoreBarColor(pageResult.scores.performance) }}>
                                     {pageResult.scores.performance}
-                                  </td>
-                                  <td className="px-2 py-3 text-center font-bold" style={{ color: scoreBarColor(pageResult.scores.accessibility) }}>
+                                  </TD>
+                                  <TD className="px-2 py-3 text-center font-bold" style={{ color: scoreBarColor(pageResult.scores.accessibility) }}>
                                     {pageResult.scores.accessibility}
-                                  </td>
-                                  <td className="px-2 py-3 text-center font-bold" style={{ color: scoreBarColor(pageResult.scores.seo) }}>
+                                  </TD>
+                                  <TD className="px-2 py-3 text-center font-bold" style={{ color: scoreBarColor(pageResult.scores.seo) }}>
                                     {pageResult.scores.seo}
-                                  </td>
-                                  <td className="px-2 py-3 text-center font-bold" style={{ color: vitalBarColor("lcp", pageResult.webVitals?.lcp ?? null) }}>
+                                  </TD>
+                                  <TD className="px-2 py-3 text-center font-bold" style={{ color: vitalBarColor("lcp", pageResult.webVitals?.lcp ?? null) }}>
                                     {formatMs(pageResult.webVitals?.lcp ?? null)}
-                                  </td>
+                                  </TD>
                                 </Fragment>
                               );
                             })}
-                          </tr>
+                          </TR>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </TBody>
+                  </Table>
                 </div>
               </CardBody>
             )}

@@ -17,8 +17,12 @@ import {
   Pagination,
   EmptyState,
   Skeleton,
+  Select,
+  Input,
 } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
+import { formatSignedDecimal, formatSignedMoney, formatSignedNumber } from "@/lib/experimentFormatting";
+import { MetricCell } from "@/components/dashboard/MetricCell";
 import type { ExperimentMetricKey } from "@/types";
 import type { GA4EnrichedExperiment as EnrichedExp } from "@/hooks/useGA4Data";
 
@@ -130,19 +134,19 @@ export function GA4ExperimentsPage() {
           {/* Controls */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-sm flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-ink/40" />
-              <input
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-ink/40 z-10" />
+              <Input
                 type="text"
                 placeholder="Search experiments..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                className="w-full rounded-xl border border-ink/15 py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-500 text-ink placeholder:text-ink/40"
+                className="pl-9"
               />
             </div>
-            <select
+            <Select
               value={sortKey}
               onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(0); }}
-              className="rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-200"
+              className="sm:w-56"
             >
               <option value="revenue">Sort by revenue</option>
               <option value="rpv">Sort by RPV</option>
@@ -152,7 +156,7 @@ export function GA4ExperimentsPage() {
               <option value="aov">Sort by AOV</option>
               <option value="name">Sort by name</option>
               <option value="status">Sort by status</option>
-            </select>
+            </Select>
           </div>
 
           {/* Table */}
@@ -201,12 +205,12 @@ export function GA4ExperimentsPage() {
                           <TD>
                             <StatusBadge status={experiment.status} />
                           </TD>
-                          <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
-                          <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                          <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
-                          <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
-                          <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
-                          <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                          <MetricCell uplift={experiment.uplifts?.revenue} formatValue={(v) => formatSignedMoney(v, money)} />
+                          <MetricCell uplift={experiment.uplifts?.rpv} formatValue={(v) => formatSignedMoney(v, rpvMoney)} />
+                          <MetricCell uplift={experiment.uplifts?.purchases} formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell uplift={experiment.uplifts?.products} formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell uplift={experiment.uplifts?.cvr} formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
+                          <MetricCell uplift={experiment.uplifts?.aov} formatValue={(v) => formatSignedMoney(v, rpvMoney)} />
                         </TR>
                       ))}
                 </TBody>
@@ -238,42 +242,6 @@ export function GA4ExperimentsPage() {
   );
 }
 
-function MetricCell({
-  experiment,
-  metric,
-  formatValue,
-}: {
-  experiment: EnrichedExp;
-  metric: ExperimentMetricKey;
-  formatValue: (value: number) => string;
-}) {
-  const uplift = experiment.uplifts?.[metric];
-  if (!uplift) return <TD className="whitespace-nowrap text-ink/40">--</TD>;
-  return (
-    <TD className="whitespace-nowrap">
-      <div className={`font-semibold ${toneClass(uplift.uplift)}`}>{formatValue(uplift.uplift)}</div>
-      <div className="text-xs text-ink/45">{formatSignedDecimal(uplift.upliftPercent)}%</div>
-    </TD>
-  );
-}
-
 function isMetricKey(value: SortKey): value is ExperimentMetricKey {
   return metricKeys.includes(value as ExperimentMetricKey);
-}
-function formatMoney(value: number, formatter: Intl.NumberFormat): string {
-  return value > 0 ? `+${formatter.format(value)}` : formatter.format(value);
-}
-function formatSignedNumber(value: number, formatter: Intl.NumberFormat): string {
-  return value > 0 ? `+${formatter.format(value)}` : formatter.format(value);
-}
-function formatSignedDecimal(value: number): string {
-  const f = Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (value > 0) return `+${f}`;
-  if (value < 0) return `-${f}`;
-  return "0";
-}
-function toneClass(value: number): string {
-  if (value > 0) return "text-emerald-700";
-  if (value < 0) return "text-red-600";
-  return "text-ink/60";
 }

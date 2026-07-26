@@ -4,8 +4,11 @@ import { doc, getDoc, getDocs, updateDoc, collection, query, where, Timestamp } 
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Alert } from "@/components/ui/Alert";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tabs } from "@/components/ui/Tabs";
 import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User, ListChecks } from "lucide-react";
 import { syncFromConvert, pullNewFromConvert, type SyncProgress } from "@/lib/convertSync";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +18,7 @@ import { ClientDashboardSettingsPage } from "@/pages/admin/ClientDashboardSettin
 import { ClientTimelineEditorPage } from "@/pages/admin/ClientTimelineEditorPage";
 import { AdminAuditFindingsPage } from "@/pages/admin/AdminAuditFindingsPage";
 import { API_BASE, fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
+import { SyncProgressBlock } from "@/components/clients/SyncProgressBlock";
 
 export function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -219,31 +223,6 @@ export function ClientDetailPage() {
     { key: "audit" as const,     label: "Audit Findings",       icon: ListChecks },
   ];
 
-  const SyncProgressBlock = ({ progress, label }: { progress: SyncProgress | null; label: string }) => {
-    if (!progress) return null;
-    return (
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-        <p className="font-medium">
-          {progress.phase === "listing" && (progress.message ?? `${label} — listing experiments… found ${progress.fetched}`)}
-          {progress.phase === "reports" && `${label} — fetching reports ${progress.fetched} / ${progress.total}`}
-          {progress.phase === "writing" && `${label} — writing to Firestore ${progress.fetched} / ${progress.total}`}
-          {progress.phase === "done" && (progress.message ?? `${label} — done, ${progress.total} experiments.`)}
-          {progress.phase === "error" && `${label} — error: ${progress.message}`}
-        </p>
-        {progress.total > 0 && progress.phase === "reports" && (
-          <>
-            <div className="mt-2 h-2 w-full rounded-full bg-blue-100">
-              <div className="h-2 rounded-full bg-blue-500 transition-all" style={{ width: `${Math.round((progress.fetched / progress.total) * 100)}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-blue-600">
-              ~{Math.max(0, Math.ceil((progress.total - progress.fetched) * 16 / 60))} min remaining.
-            </p>
-          </>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -260,21 +239,20 @@ export function ClientDetailPage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="border-b border-ink/10 bg-white px-6 flex shrink-0" data-tutorial="admin-client-tabs">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              activeTab === key
-                ? "border-brand-500 text-ink"
-                : "border-transparent text-ink/50 hover:text-ink hover:border-ink/20"
-            }`}
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-          </button>
-        ))}
+      <div className="bg-white px-6 shrink-0" data-tutorial="admin-client-tabs">
+        <Tabs
+          items={TABS.map(({ key, label, icon: Icon }) => ({
+            value: key,
+            label: (
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <Icon className="h-4 w-4" />
+                {label}
+              </span>
+            ),
+          }))}
+          value={activeTab}
+          onChange={setActiveTab}
+        />
       </div>
 
       {/* Tab content */}
@@ -283,9 +261,7 @@ export function ClientDetailPage() {
         {/* ── Overview ─────────────────────────────────────────────────────── */}
         {activeTab === "overview" && (
           <div className="p-8 max-w-3xl space-y-6" data-tutorial="admin-client-overview">
-            {message && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{message}</div>
-            )}
+            {message && <Alert tone="info">{message}</Alert>}
             <form onSubmit={handleSave} className="space-y-6">
               <Card>
                 <CardHeader><h2 className="font-semibold text-ink">Client Details</h2></CardHeader>
@@ -307,13 +283,10 @@ export function ClientDetailPage() {
                     )}
                     <Input label="Report Currency" value={client.currency} onChange={(e) => setClient((p) => p ? { ...p, currency: e.target.value } : p)} />
                   </div>
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium text-ink/80">Status</label>
-                    <select value={client.status} onChange={(e) => setClient((p) => p ? { ...p, status: e.target.value as "active" | "inactive" } : p)} className="border border-ink/15 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-200">
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
+                  <Select label="Status" value={client.status} onChange={(e) => setClient((p) => p ? { ...p, status: e.target.value as "active" | "inactive" } : p)}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </Select>
                 </CardBody>
               </Card>
               <div className="flex gap-3">
@@ -329,10 +302,9 @@ export function ClientDetailPage() {
                 ) : ga4Properties.length === 0 ? (
                   <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
                 ) : (
-                  <select
+                  <Select
                     value={client.ga4PropertyId ?? ""}
                     onChange={(e) => setClient((p) => p ? { ...p, ga4PropertyId: e.target.value || undefined } : p)}
-                    className="block w-full rounded-lg border border-ink/15 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
                   >
                     <option value="">— None (disable GA4 view) —</option>
                     {ga4Properties.map((p) => (
@@ -340,7 +312,7 @@ export function ClientDetailPage() {
                         {p.displayName} ({p.accountDisplayName} · {p.propertyId})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
                 <p className="text-xs text-ink/40">Select the GA4 property to link with this client's GA4 Data View. Save changes above to apply.</p>
               </CardBody>
@@ -393,7 +365,7 @@ export function ClientDetailPage() {
                   <Button variant="danger" size="sm" onClick={handleSetPassword} disabled={newPassword.length < 6} loading={passwordResetting}>Set password</Button>
                 </div>
                 {passwordMessage && (
-                  <p className={`text-sm rounded-lg px-4 py-2 ${passwordMessage.type === "success" ? "text-green-700 bg-green-50" : "text-red-700 bg-red-50"}`}>{passwordMessage.text}</p>
+                  <Alert tone={passwordMessage.type === "success" ? "success" : "danger"}>{passwordMessage.text}</Alert>
                 )}
               </CardBody>
             </Card>
@@ -408,9 +380,7 @@ export function ClientDetailPage() {
               <p className="text-sm text-ink/50 mt-1">Pull experiment data from Convert.com into Firestore.</p>
             </div>
 
-            {message && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{message}</div>
-            )}
+            {message && <Alert tone="info">{message}</Alert>}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Card>

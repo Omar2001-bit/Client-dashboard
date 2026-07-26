@@ -6,6 +6,7 @@ export * from "./Badge";
 export * from "./Button";
 export * from "./Card";
 export * from "./Checkbox";
+export * from "./ChoiceCard";
 export * from "./Chip";
 export * from "./Dialog";
 export * from "./Dropdown";

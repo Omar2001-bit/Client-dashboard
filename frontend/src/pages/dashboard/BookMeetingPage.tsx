@@ -1,46 +1,9 @@
 import { CalendarPlus, BriefcaseBusiness, Wrench } from "lucide-react";
 import { track } from "@/lib/activityTracker";
+import { ChoiceCard } from "@/components/ui";
 
 const BUSINESS_MEETING_URL = "https://calendly.com/alia-optimizers/30min";
 const TECHNICAL_MEETING_URL = "https://calendly.com/omar-optimizers/30min";
-
-function MeetingOption({
-  title,
-  description,
-  href,
-  icon: Icon,
-  accent,
-}: {
-  title: string;
-  description: string;
-  href: string;
-  icon: typeof CalendarPlus;
-  accent: string;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      onClick={() => track({ type: "meeting_type_selected", metadata: { meetingType: title } })}
-      className="group block rounded-3xl border border-ink/10 bg-white p-6 shadow-[0_12px_30px_rgba(22,42,61,0.06)] transition-transform hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(22,42,61,0.1)]"
-    >
-      <div className="flex items-start gap-4">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: accent }}>
-          <Icon className="h-6 w-6 text-white" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-lg font-semibold text-ink">{title}</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink/60">{description}</p>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-ink/[0.03] px-4 py-2 text-sm font-medium text-ink/70 group-hover:text-ink">
-            Open Calendly
-            <span className="text-ink/30">→</span>
-          </div>
-        </div>
-      </div>
-    </a>
-  );
-}
 
 export function BookMeetingPage() {
   return (
@@ -68,21 +31,25 @@ export function BookMeetingPage() {
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div data-tutorial="meeting-business">
-            <MeetingOption
+            <ChoiceCard
               title="Business Meeting"
               description="Use this for commercial discussions, priorities, planning, and next-step alignment with the team."
               href={BUSINESS_MEETING_URL}
               icon={BriefcaseBusiness}
               accent="#6ae499"
+              ctaLabel="Open Calendly"
+              onClick={() => track({ type: "meeting_type_selected", metadata: { meetingType: "Business Meeting" } })}
             />
           </div>
           <div data-tutorial="meeting-technical">
-            <MeetingOption
+            <ChoiceCard
               title="Technical Meeting"
               description="Use this for implementation details, tracking issues, integrations, or deeper product and campaign questions."
               href={TECHNICAL_MEETING_URL}
               icon={Wrench}
               accent="#7cb7ff"
+              ctaLabel="Open Calendly"
+              onClick={() => track({ type: "meeting_type_selected", metadata: { meetingType: "Technical Meeting" } })}
             />
           </div>
         </div>

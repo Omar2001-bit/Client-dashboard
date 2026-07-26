@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDashboardSettings, useClientPreferences } from "@/hooks/useDashboardSettings";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
+import { formatPlainDecimal, formatSignedDecimal, formatSignedMoney, formatSignedNumber, toneClass } from "@/lib/experimentFormatting";
 import type { ExperimentMetricKey, ExperimentSummary, MetricUplift } from "@/types";
 
 const metrics: Array<{ key: ExperimentMetricKey; label: string }> = [
@@ -391,27 +392,3 @@ function formatMetricUplift(
   return formatSignedNumber(value, number);
 }
 
-function formatSignedMoney(value: number, formatter: Intl.NumberFormat): string {
-  return value > 0 ? `+${formatter.format(value)}` : formatter.format(value);
-}
-
-function formatSignedNumber(value: number, formatter: Intl.NumberFormat): string {
-  return value > 0 ? `+${formatter.format(value)}` : formatter.format(value);
-}
-
-function formatPlainDecimal(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatSignedDecimal(value: number): string {
-  const formatted = Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (value > 0) return `+${formatted}`;
-  if (value < 0) return `-${formatted}`;
-  return "0";
-}
-
-function toneClass(value: number): string {
-  if (value > 0) return "text-emerald-700";
-  if (value < 0) return "text-red-600";
-  return "text-ink/60";
-}

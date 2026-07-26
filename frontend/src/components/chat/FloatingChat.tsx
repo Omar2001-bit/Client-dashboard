@@ -9,18 +9,11 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
-import { sendChatMessage, markAsRead, notifyAdminByEmail } from "@/lib/supportChat";
+import { markAsRead, notifyAdminByEmail } from "@/lib/supportChat";
+import { useSupportChatThread } from "@/hooks/useSupportChatThread";
 import { MessageSquare, X, Send, ArrowLeft } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Message {
-  id: string;
-  text: string;
-  senderRole: "client" | "admin";
-  senderName: string;
-  createdAt: { toDate(): Date } | null;
-}
 
 interface Ticket {
   id: string;
@@ -57,53 +50,22 @@ function ChatMessages({
   headerTitle: string;
 }) {
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    markAsRead(clientId, myRole);
-    const q = query(
-      collection(db, "supportTickets", clientId, "messages"),
-      orderBy("createdAt", "asc")
-    );
-    return onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Message)));
-    });
-  }, [clientId, myRole]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!text.trim() || !user || sending) return;
-    setSending(true);
-    const trimmed = text.trim();
-    setText("");
-    try {
-      await sendChatMessage({
-        clientId,
-        clientName,
-        text: trimmed,
-        senderId: user.uid,
-        senderRole: myRole,
-        senderName: myName,
-      });
+  const { messages, text, setText, sending, handleSend, bottomRef } = useSupportChatThread({
+    clientId,
+    clientName,
+    myRole,
+    myName,
+    senderId: user?.uid,
+    onMessageSent: (trimmed) => {
       if (myRole === "client") {
         track({ type: "chat_message_sent", metadata: { surface: "floating_widget", message: trimmed, messageLength: trimmed.length } });
         notifyAdminByEmail(trimmed, myName, clientName, myEmail);
       }
-    } catch (err) {
-      console.error("[chat] send failed:", err);
-      setText(trimmed);
-    } finally {
-      setSending(false);
       inputRef.current?.focus();
-    }
-  };
+    },
+  });
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

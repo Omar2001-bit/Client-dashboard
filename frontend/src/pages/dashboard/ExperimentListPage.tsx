@@ -14,12 +14,16 @@ import {
   Pagination,
   EmptyState,
   Skeleton,
+  Select,
+  Input,
 } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDashboardSettings, useClientPreferences } from "@/hooks/useDashboardSettings";
 import { matchesNamingConvention } from "@/lib/namingConvention";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
+import { formatSignedDecimal, formatSignedMoney, formatSignedNumber } from "@/lib/experimentFormatting";
+import { MetricCell } from "@/components/dashboard/MetricCell";
 import type { ExperimentMetricKey, ExperimentSummary } from "@/types";
 
 const PAGE_SIZE = 15;
@@ -114,20 +118,20 @@ export function ExperimentListPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div data-tutorial="experiments-search" className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-ink/40" />
-          <input
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-ink/40 z-10" />
+          <Input
             type="text"
             placeholder="Search experiments..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); if (e.target.value.length > 2) track({ type: "search", metadata: { query: e.target.value } }); }}
-            className="w-full rounded-xl border border-ink/15 py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-500 text-ink placeholder:text-ink/40"
+            className="pl-9"
           />
         </div>
-        <select
+        <Select
           data-tutorial="experiments-sort"
           value={sortKey}
           onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(0); track({ type: "sort_change", metadata: { sortKey: e.target.value } }); }}
-          className="rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-200"
+          className="sm:w-56"
         >
           <option value="revenue">Sort by revenue</option>
           <option value="rpv">Sort by RPV</option>
@@ -137,7 +141,7 @@ export function ExperimentListPage() {
           <option value="aov">Sort by AOV</option>
           <option value="name">Sort by name</option>
           <option value="status">Sort by status</option>
-        </select>
+        </Select>
       </div>
 
       <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
@@ -196,12 +200,12 @@ export function ExperimentListPage() {
                         <TD>
                           <StatusBadge status={experiment.status} />
                         </TD>
-                        <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
-                        <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                        <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
-                        <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
-                        <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
-                        <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                        <MetricCell uplift={experiment.uplifts?.revenue} formatValue={(v) => formatSignedMoney(v, money)} />
+                        <MetricCell uplift={experiment.uplifts?.rpv} formatValue={(v) => formatSignedMoney(v, rpvMoney)} />
+                        <MetricCell uplift={experiment.uplifts?.purchases} formatValue={(v) => formatSignedNumber(v, number)} />
+                        <MetricCell uplift={experiment.uplifts?.products} formatValue={(v) => formatSignedNumber(v, number)} />
+                        <MetricCell uplift={experiment.uplifts?.cvr} formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
+                        <MetricCell uplift={experiment.uplifts?.aov} formatValue={(v) => formatSignedMoney(v, rpvMoney)} />
                         <TD className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
@@ -252,26 +256,4 @@ export function ExperimentListPage() {
   );
 }
 
-function MetricCell({ experiment, metric, formatValue }: {
-  experiment: ExperimentSummary; metric: ExperimentMetricKey; formatValue: (value: number) => string;
-}) {
-  const uplift = experiment.uplifts?.[metric];
-  if (!uplift) return <TD className="whitespace-nowrap text-ink/40">--</TD>;
-  return (
-    <TD className="whitespace-nowrap">
-      <div className={`font-semibold ${toneClass(uplift.uplift)}`}>{formatValue(uplift.uplift)}</div>
-      <div className="text-xs text-ink/45">{formatSignedDecimal(uplift.upliftPercent)}%</div>
-    </TD>
-  );
-}
-
 function isMetricKey(value: SortKey): value is ExperimentMetricKey { return metricKeys.includes(value as ExperimentMetricKey); }
-function formatMoney(value: number, formatter: Intl.NumberFormat): string { return value > 0 ? `+${formatter.format(value)}` : formatter.format(value); }
-function formatSignedNumber(value: number, formatter: Intl.NumberFormat): string { return value > 0 ? `+${formatter.format(value)}` : formatter.format(value); }
-function formatSignedDecimal(value: number): string {
-  const f = Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (value > 0) return `+${f}`; if (value < 0) return `-${f}`; return "0";
-}
-function toneClass(value: number): string {
-  if (value > 0) return "text-emerald-700"; if (value < 0) return "text-red-600"; return "text-ink/60";
-}

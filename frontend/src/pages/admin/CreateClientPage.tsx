@@ -6,6 +6,8 @@ import { db } from "@/lib/firebase";
 import { createUserDirectly } from "@/lib/adminUsers";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Alert } from "@/components/ui/Alert";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -146,19 +148,18 @@ export function CreateClientPage() {
           <CardHeader><h2 className="font-semibold text-ink">Account Access</h2></CardHeader>
           <CardBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-ink/80">Role</label>
-                <select
+              <div>
+                <Select
+                  label="Role"
                   value={form.role}
                   onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as CreateClientFormData["role"] }))}
-                  className="block w-full rounded-lg border border-ink/15 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
                 >
                   <option value="client">Client</option>
                   <option value="admin">Admin</option>
                   <option value="executiveAdmin" disabled={executiveAdminExists}>
                     Executive Admin{executiveAdminExists ? " (slot taken)" : ""}
                   </option>
-                </select>
+                </Select>
                 {executiveAdminExists && form.role !== "executiveAdmin" && (
                   <p className="text-xs text-ink/40 mt-1">An executive admin already exists. Only one is permitted.</p>
                 )}
@@ -254,16 +255,18 @@ export function CreateClientPage() {
         <Card>
           <CardHeader><h2 className="font-semibold text-ink">GA4 Property</h2></CardHeader>
           <CardBody className="space-y-2">
-            <label className="block text-sm font-medium text-ink/80">GA4 Property</label>
             {ga4Loading ? (
               <div className="h-9 animate-pulse rounded-lg bg-ink/10" />
             ) : ga4Properties.length === 0 ? (
-              <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
+              <>
+                <label className="block text-sm font-medium text-ink/80">GA4 Property</label>
+                <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
+              </>
             ) : (
-              <select
+              <Select
+                label="GA4 Property"
                 value={form.ga4PropertyId ?? ""}
                 onChange={(e) => setForm((p) => ({ ...p, ga4PropertyId: e.target.value }))}
-                className="block w-full rounded-lg border border-ink/15 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
               >
                 <option value="">— None (skip GA4) —</option>
                 {ga4Properties.map((p) => (
@@ -271,18 +274,14 @@ export function CreateClientPage() {
                     {p.displayName} ({p.accountDisplayName} · {p.propertyId})
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
             <p className="text-xs text-ink/40">Links this client to a GA4 property for the GA4 Data View dashboard.</p>
           </CardBody>
         </Card>
         )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <Alert tone="danger">{error}</Alert>}
 
         <div className="flex gap-3">
           <Button type="submit" size="lg" loading={loading}>Save User</Button>

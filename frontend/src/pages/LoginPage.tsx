@@ -5,8 +5,8 @@ import { auth } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Logo } from "@/components/ui/Logo";
 import { Alert } from "@/components/ui/Alert";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -42,45 +42,39 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-ink rounded-2xl mb-4 text-brand-500">
-            <Logo variant="mark" className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-ink tracking-tight">Optimizers</h1>
-          <p className="text-ink/50 text-sm mt-1">Sign in to your dashboard</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-white rounded-brand border border-ink/10 shadow-card p-6 space-y-4">
-          <Input
-            label="Email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          {error && <Alert tone="danger">{error}</Alert>}
-          <Button type="submit" className="w-full" size="lg" loading={loading}>
-            Sign in
-          </Button>
-        </form>
-
+    <AuthShell
+      title="Optimizers"
+      subtitle="Sign in to your dashboard"
+      footer={
         <p className="mt-4 text-center text-sm text-ink/50">
           <Link to="/forgot-password" className="text-ink hover:text-brand-700 font-medium underline-offset-4 hover:underline">
             Forgot your password?
           </Link>
         </p>
-      </div>
-    </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Input
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Button type="submit" className="w-full" size="lg" loading={loading}>
+          Sign in
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

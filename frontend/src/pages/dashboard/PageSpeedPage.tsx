@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { useNavigate } from "react-router-dom";
 import {
   SCORE_METRICS,
@@ -15,6 +16,9 @@ import {
   metricUnitForKey,
   toHumanLabel,
 } from "@/lib/pageSpeedMetrics";
+import { scoreColor, scoreBarColor, vitalColor, formatMs, formatCls } from "@/lib/pageSpeedScoreColor";
+import { ScoreGauge } from "@/components/pageSpeed/ScoreGauge";
+import { ScoreBadge } from "@/components/pageSpeed/ScoreBadge";
 import {
   Gauge,
   Monitor,
@@ -82,85 +86,6 @@ interface SitemapEntry {
 type SortKey = "url" | "performance" | "accessibility" | "seo" | "bestPractices" | "lcp" | "cls" | "fcp" | "tbt" | "si" | "inp";
 type SortDir = "asc" | "desc";
 
-function scoreColor(score: number): string {
-  if (score >= 90) return "text-[#0cce6b]";
-  if (score >= 50) return "text-[#ffa400]";
-  return "text-[#ff4e42]";
-}
-
-function scoreBg(score: number): string {
-  if (score >= 90) return "bg-[#0cce6b]/10 border-[#0cce6b]/25";
-  if (score >= 50) return "bg-[#ffa400]/10 border-[#ffa400]/25";
-  return "bg-[#ff4e42]/10 border-[#ff4e42]/25";
-}
-
-function scoreRingColor(score: number): string {
-  if (score >= 90) return "#0cce6b";
-  if (score >= 50) return "#ffa400";
-  return "#ff4e42";
-}
-
-function formatMs(ms: number | null): string {
-  if (ms == null) return "—";
-  if (ms < 1000) return `${Math.round(ms)} ms`;
-  return `${(ms / 1000).toFixed(1)} s`;
-}
-
-function formatCls(value: number | null): string {
-  if (value == null) return "—";
-  return value.toFixed(3);
-}
-
-function vitalColor(metric: string, value: number | null): string {
-  if (value == null) return "text-ink/40";
-  if (metric === "lcp") return value <= 2500 ? "text-[#0cce6b]" : value <= 4000 ? "text-[#ffa400]" : "text-[#ff4e42]";
-  if (metric === "fcp") return value <= 1800 ? "text-[#0cce6b]" : value <= 3000 ? "text-[#ffa400]" : "text-[#ff4e42]";
-  if (metric === "cls") return value <= 0.1 ? "text-[#0cce6b]" : value <= 0.25 ? "text-[#ffa400]" : "text-[#ff4e42]";
-  if (metric === "tbt") return value <= 200 ? "text-[#0cce6b]" : value <= 600 ? "text-[#ffa400]" : "text-[#ff4e42]";
-  if (metric === "inp") return value <= 200 ? "text-[#0cce6b]" : value <= 500 ? "text-[#ffa400]" : "text-[#ff4e42]";
-  if (metric === "si") return value <= 3400 ? "text-[#0cce6b]" : value <= 5800 ? "text-[#ffa400]" : "text-[#ff4e42]";
-  return "text-ink/60";
-}
-
-function ScoreGauge({ score, size = 96, label }: { score: number; size?: number; label: string }) {
-  const radius = (size - 10) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = (score / 100) * circumference;
-  const color = scoreRingColor(score);
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={5} className="text-ink/5" />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={5}
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference - progress}
-          strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center justify-center" style={{ width: size, height: size }}>
-        <span className={`text-2xl font-bold ${scoreColor(score)}`}>{score}</span>
-      </div>
-      <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">{label}</p>
-    </div>
-  );
-}
-
-function ScoreBadge({ score }: { score: number }) {
-  return (
-    <span className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-bold ${scoreBg(score)} ${scoreColor(score)}`}>
-      {score}
-    </span>
-  );
-}
-
 interface PastRun {
   id: string;
   name: string;
@@ -185,12 +110,6 @@ const FIXED_AUDIT_KEYS = new Set([
   "speed-index",
   "interaction-to-next-paint",
 ]);
-
-function scoreBarColor(score: number): string {
-  if (score >= 90) return "#10b981";
-  if (score >= 50) return "#f59e0b";
-  return "#ef4444";
-}
 
 export function PageSpeedPage() {
   const clientId = useAuthStore((s) => s.clientId);
@@ -841,25 +760,25 @@ export function PageSpeedPage() {
           </CardHeader>
           <CardBody className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-ink/10 bg-ink/[0.02] text-left">
-                    <th className="px-5 py-3"><SortHeader label="Page" sortKeyName="url" /></th>
-                    <th className="px-5 py-3 text-xs uppercase tracking-wider font-semibold text-ink/50">PSI Report</th>
-                    <th className="px-5 py-3 text-xs uppercase tracking-wider font-semibold text-ink/50">Screenshot</th>
-                    <th className="px-5 py-3"><SortHeader label="Perf" sortKeyName="performance" /></th>
-                    <th className="px-5 py-3"><SortHeader label="A11y" sortKeyName="accessibility" /></th>
-                    <th className="px-5 py-3"><SortHeader label="Best P." sortKeyName="bestPractices" /></th>
-                    <th className="px-5 py-3"><SortHeader label="SEO" sortKeyName="seo" /></th>
-                    <th className="px-5 py-3"><SortHeader label="LCP" sortKeyName="lcp" /></th>
-                    <th className="px-5 py-3"><SortHeader label="CLS" sortKeyName="cls" /></th>
-                    <th className="px-5 py-3"><SortHeader label="FCP" sortKeyName="fcp" /></th>
-                    <th className="px-5 py-3"><SortHeader label="TBT" sortKeyName="tbt" /></th>
-                    <th className="px-5 py-3"><SortHeader label="SI" sortKeyName="si" /></th>
-                    <th className="px-5 py-3"><SortHeader label="INP" sortKeyName="inp" /></th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <THead>
+                  <TR className="bg-ink/[0.02] hover:bg-transparent">
+                    <TH className="px-5 py-3"><SortHeader label="Page" sortKeyName="url" /></TH>
+                    <TH className="px-5 py-3 text-xs uppercase tracking-wider font-semibold text-ink/50">PSI Report</TH>
+                    <TH className="px-5 py-3 text-xs uppercase tracking-wider font-semibold text-ink/50">Screenshot</TH>
+                    <TH className="px-5 py-3"><SortHeader label="Perf" sortKeyName="performance" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="A11y" sortKeyName="accessibility" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="Best P." sortKeyName="bestPractices" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="SEO" sortKeyName="seo" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="LCP" sortKeyName="lcp" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="CLS" sortKeyName="cls" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="FCP" sortKeyName="fcp" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="TBT" sortKeyName="tbt" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="SI" sortKeyName="si" /></TH>
+                    <TH className="px-5 py-3"><SortHeader label="INP" sortKeyName="inp" /></TH>
+                  </TR>
+                </THead>
+                <TBody>
                   {sortedResults.map((r) => {
                     const urlPath = (() => {
                       try {
@@ -871,23 +790,23 @@ export function PageSpeedPage() {
 
                     if (r.error) {
                       return (
-                        <tr key={r.url} className="border-b border-ink/5">
-                          <td className="px-5 py-3">
+                        <TR key={r.url} className="hover:bg-transparent">
+                          <TD className="px-5 py-3">
                             <div className="flex items-center gap-2">
                               <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
                               <span className="text-ink/50 truncate max-w-[280px]" title={r.url}>{urlPath}</span>
                             </div>
-                          </td>
-                          <td className="px-5 py-3 text-xs text-ink/25">—</td>
-                          <td className="px-5 py-3 text-xs text-ink/25">—</td>
-                          <td colSpan={10} className="px-5 py-3 text-xs text-red-500">{r.error}</td>
-                        </tr>
+                          </TD>
+                          <TD className="px-5 py-3 text-xs text-ink/25">—</TD>
+                          <TD className="px-5 py-3 text-xs text-ink/25">—</TD>
+                          <TD colSpan={10} className="px-5 py-3 text-xs text-red-500">{r.error}</TD>
+                        </TR>
                       );
                     }
 
                     return (
-                      <tr key={r.url} className="border-b border-ink/5 transition-colors hover:bg-ink/[0.01]">
-                        <td className="px-5 py-3">
+                      <TR key={r.url} className="hover:bg-ink/[0.01]">
+                        <TD className="px-5 py-3">
                           <a
                             href={r.url}
                             target="_blank"
@@ -899,8 +818,8 @@ export function PageSpeedPage() {
                             <span className="truncate max-w-[280px]">{urlPath}</span>
                             <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </a>
-                        </td>
-                        <td className="px-5 py-3">
+                        </TD>
+                        <TD className="px-5 py-3">
                           <a
                             href={`https://pagespeed.web.dev/report?url=${encodeURIComponent(r.url)}`}
                             target="_blank"
@@ -912,35 +831,35 @@ export function PageSpeedPage() {
                             {strategy === "mobile" ? <Smartphone className="h-3 w-3 shrink-0" /> : <Monitor className="h-3 w-3 shrink-0" />}
                             <ExternalLink className="h-3 w-3 shrink-0" />
                           </a>
-                        </td>
-                        <td className="px-5 py-3"><ScreenshotPreview result={r} /></td>
-                        <td className="px-5 py-3"><ScoreBadge score={r.scores!.performance} /></td>
-                        <td className="px-5 py-3"><ScoreBadge score={r.scores!.accessibility} /></td>
-                        <td className="px-5 py-3"><ScoreBadge score={r.scores!.bestPractices} /></td>
-                        <td className="px-5 py-3"><ScoreBadge score={r.scores!.seo} /></td>
-                        <td className={`px-5 py-3 font-semibold ${vitalColor("lcp", r.webVitals?.lcp ?? null)}`}>
+                        </TD>
+                        <TD className="px-5 py-3"><ScreenshotPreview result={r} /></TD>
+                        <TD className="px-5 py-3"><ScoreBadge score={r.scores!.performance} /></TD>
+                        <TD className="px-5 py-3"><ScoreBadge score={r.scores!.accessibility} /></TD>
+                        <TD className="px-5 py-3"><ScoreBadge score={r.scores!.bestPractices} /></TD>
+                        <TD className="px-5 py-3"><ScoreBadge score={r.scores!.seo} /></TD>
+                        <TD className={`px-5 py-3 font-semibold ${vitalColor("lcp", r.webVitals?.lcp ?? null)}`}>
                           {formatMs(r.webVitals?.lcp ?? null)}
-                        </td>
-                        <td className={`px-5 py-3 font-semibold ${vitalColor("cls", r.webVitals?.cls ?? null)}`}>
+                        </TD>
+                        <TD className={`px-5 py-3 font-semibold ${vitalColor("cls", r.webVitals?.cls ?? null)}`}>
                           {formatCls(r.webVitals?.cls ?? null)}
-                        </td>
-                        <td className={`px-5 py-3 font-semibold ${vitalColor("fcp", r.webVitals?.fcp ?? null)}`}>
+                        </TD>
+                        <TD className={`px-5 py-3 font-semibold ${vitalColor("fcp", r.webVitals?.fcp ?? null)}`}>
                           {formatMs(r.webVitals?.fcp ?? null)}
-                        </td>
-                        <td className={`px-5 py-3 font-semibold ${vitalColor("tbt", r.webVitals?.tbt ?? null)}`}>
+                        </TD>
+                        <TD className={`px-5 py-3 font-semibold ${vitalColor("tbt", r.webVitals?.tbt ?? null)}`}>
                           {formatMs(r.webVitals?.tbt ?? null)}
-                        </td>
-                        <td className={`px-5 py-3 font-semibold ${vitalColor("si", r.webVitals?.si ?? null)}`}>
+                        </TD>
+                        <TD className={`px-5 py-3 font-semibold ${vitalColor("si", r.webVitals?.si ?? null)}`}>
                           {formatMs(r.webVitals?.si ?? null)}
-                        </td>
-                        <td className={`px-5 py-3 font-semibold ${vitalColor("inp", r.webVitals?.inp ?? null)}`}>
+                        </TD>
+                        <TD className={`px-5 py-3 font-semibold ${vitalColor("inp", r.webVitals?.inp ?? null)}`}>
                           {formatMs(r.webVitals?.inp ?? null)}
-                        </td>
-                      </tr>
+                        </TD>
+                      </TR>
                     );
                   })}
-                </tbody>
-              </table>
+                </TBody>
+              </Table>
             </div>
             {sortedResults.length === 0 && (
               <div className="py-10 text-center text-sm text-ink/50">

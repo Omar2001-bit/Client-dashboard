@@ -1,4 +1,5 @@
 import { Trophy } from "lucide-react";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { metricLabel } from "@/lib/ga4Reports/metricLabels";
 import { detectGranularity } from "@/lib/ga4Reports/dates";
 import { periodTotal } from "@/lib/ga4Reports/buildInsights";
@@ -80,47 +81,47 @@ export function HighlightPeriodsSection({ data, metricsMeta, colorPeriods }: Pro
         Highlight periods
       </h3>
       <div className="overflow-x-auto rounded-xl border border-ink/10 bg-ink/[0.03]">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-ink/10 text-left text-xs uppercase tracking-wider text-ink/50">
-              <th className="px-4 py-2.5 font-medium">Period</th>
+        <Table>
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH className="px-4 py-2.5">Period</TH>
               {data.metrics.map((m) => (
-                <th key={m} className="px-4 py-2.5 text-right font-medium">
+                <TH key={m} className="px-4 py-2.5 text-right">
                   {metricLabel(m, metricsMeta)}
-                </th>
+                </TH>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TR>
+          </THead>
+          <TBody>
             {periodRows.map(({ period, totals }) => {
               const best = Math.max(...totals);
               return (
-                <tr key={period.id} className="border-b border-ink/5 last:border-0">
-                  <td className="px-4 py-2.5 text-ink/70">
+                <TR key={period.id} className="hover:bg-transparent">
+                  <TD className="px-4 py-2.5 text-ink/70">
                     <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: period.color }} />
                     {period.label || "Unnamed period"}
                     <span className="ml-1.5 text-xs" style={{ color: INK_MUTED }}>
                       {period.startDate} → {period.endDate}
                     </span>
-                  </td>
+                  </TD>
                   {totals.map((t, i) => {
                     const type = data.metricHeaders[i]?.type;
                     const isBest = t === best && totals.length > 1 && best > 0;
                     return (
-                      <td
+                      <TD
                         key={i}
                         className="px-4 py-2.5 text-right tabular-nums"
                         style={{ color: isBest ? "#3ab36c" : "#162a3d" }}
                       >
                         {fmtValue(t, type, data.currencyCode)}
-                      </td>
+                      </TD>
                     );
                   })}
-                </tr>
+                </TR>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
     </div>
   );

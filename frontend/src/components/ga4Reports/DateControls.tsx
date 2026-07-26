@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { useRef } from "react";
 import DatePicker, { type DatePickerHandle } from "./DatePicker";
+import { Select } from "@/components/ui/Select";
 import { COMPARE_PRESETS, RANGE_PRESETS, maxSelectableDate, resolveCompare, resolveRange } from "@/lib/ga4Reports/dates";
 import { SERIES_A, SERIES_B } from "@/lib/ga4Reports/theme";
 import type { CompareSel, DateRangeSel } from "@/lib/ga4Reports/types";
@@ -11,9 +12,6 @@ interface Props {
   onChange: (rangeA: DateRangeSel, rangeB: CompareSel) => void;
   compact?: boolean;
 }
-
-const selectCls =
-  "focus-ring rounded-lg border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition-colors duration-150 hover:border-ink/30 focus:border-brand-500";
 
 // Ported from VC3/GA4-simply-layer's src/components/DateControls.tsx, re-skinned to this
 // app's light theme — logic unchanged.
@@ -44,8 +42,8 @@ export default function DateControls({ rangeA, rangeB, onChange, compact }: Prop
           />
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/50">Previous</span>
         </span>
-        <select
-          className={selectCls}
+        <Select
+          className="w-auto py-1.5 pl-2.5"
           value={rangeB.preset}
           onChange={(e) => {
             const preset = e.target.value as CompareSel["preset"];
@@ -63,7 +61,7 @@ export default function DateControls({ rangeA, rangeB, onChange, compact }: Prop
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
         {rangeB.preset === "custom" ? (
           <span className="flex items-center gap-1.5">
             <DatePicker
@@ -117,8 +115,8 @@ export default function DateControls({ rangeA, rangeB, onChange, compact }: Prop
           <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: SERIES_A }} />
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/50">Current</span>
         </span>
-        <select
-          className={selectCls}
+        <Select
+          className="w-auto py-1.5 pl-2.5"
           value={rangeA.preset}
           onChange={(e) => {
             const preset = e.target.value as DateRangeSel["preset"];
@@ -136,7 +134,7 @@ export default function DateControls({ rangeA, rangeB, onChange, compact }: Prop
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
         {rangeA.preset === "custom" ? (
           <span className="flex items-center gap-1.5">
             <DatePicker

@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Alert } from "@/components/ui/Alert";
 import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 import type { ClickUpAccessConfig } from "@/types";
 
@@ -97,10 +98,10 @@ export function AdminSettingsPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             {status.configured && status.authorizedUserName && (
-              <div className="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3 text-sm text-ink/70">
+              <Alert tone="info">
                 Connected as <span className="font-medium text-ink">{status.authorizedUserName}</span>
                 {status.authorizedUserEmail ? ` (${status.authorizedUserEmail})` : ""}
-              </div>
+              </Alert>
             )}
             <Input
               label="ClickUp Personal API Token"
@@ -115,11 +116,7 @@ export function AdminSettingsPage() {
               Save Token
             </Button>
 
-            {message && (
-              <div className="rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-3 text-sm text-ink/60">
-                {message}
-              </div>
-            )}
+            {message && <Alert tone="info">{message}</Alert>}
           </CardBody>
         </Card>
 

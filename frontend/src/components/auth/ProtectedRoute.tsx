@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
+import { Spinner } from "@/components/ui/Spinner";
 import type { UserRole } from "@/types";
 
 interface Props {
@@ -13,7 +14,7 @@ export function ProtectedRoute({ allowedRole, redirectTo = "/" }: Props) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
+        <Spinner className="h-10 w-10 text-brand-600" />
       </div>
     );
   }

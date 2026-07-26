@@ -2,8 +2,8 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, Settings, LogOut, MessageSquare, Activity, BookOpen } from "lucide-react";
 import { useLogout } from "@/hooks/useAuth";
 import { Logo } from "@/components/ui/Logo";
-import { FloatingChat } from "@/components/FloatingChat";
-import { AdminTutorial } from "@/components/AdminTutorial";
+import { FloatingChat } from "@/components/chat/FloatingChat";
+import { Tutorial } from "@/components/tutorial/Tutorial";
 import { useAdminTutorial } from "@/hooks/useAdminTutorial";
 
 const navItems = [
@@ -70,7 +70,7 @@ export function AdminLayout() {
       <FloatingChat />
 
       {active && (
-        <AdminTutorial
+        <Tutorial
           steps={steps}
           currentStep={currentStep}
           onNext={next}

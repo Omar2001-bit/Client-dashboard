@@ -8,8 +8,8 @@ import {
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Logo } from "@/components/ui/Logo";
 import { Alert } from "@/components/ui/Alert";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { CheckCircle } from "lucide-react";
 
 export function SetPasswordPage() {
@@ -52,56 +52,44 @@ export function SetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-ink rounded-2xl mb-4 text-brand-500">
-            <Logo variant="mark" className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-ink tracking-tight">Set your password</h1>
-          <p className="text-ink/50 text-sm mt-1">Welcome! Choose a password to access your dashboard.</p>
+    <AuthShell title="Set your password" subtitle="Welcome! Choose a password to access your dashboard.">
+      {done ? (
+        <div className="text-center space-y-3">
+          <CheckCircle className="h-10 w-10 text-brand-600 mx-auto" />
+          <p className="font-medium text-ink">All set!</p>
+          <p className="text-sm text-ink/50">Redirecting to your dashboard...</p>
         </div>
-
-        <div className="bg-white rounded-brand border border-ink/10 shadow-card p-6">
-          {done ? (
-            <div className="text-center space-y-3">
-              <CheckCircle className="h-10 w-10 text-brand-600 mx-auto" />
-              <p className="font-medium text-ink">All set!</p>
-              <p className="text-sm text-ink/50">Redirecting to your dashboard...</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                hint="Enter the email you received the invite on"
-              />
-              <Input
-                label="New password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                hint="Minimum 8 characters"
-              />
-              <Input
-                label="Confirm password"
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                required
-              />
-              {error && <Alert tone="danger">{error}</Alert>}
-              <Button type="submit" className="w-full" size="lg" loading={loading}>
-                Set password &amp; sign in
-              </Button>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            hint="Enter the email you received the invite on"
+          />
+          <Input
+            label="New password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            hint="Minimum 8 characters"
+          />
+          <Input
+            label="Confirm password"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+          />
+          {error && <Alert tone="danger">{error}</Alert>}
+          <Button type="submit" className="w-full" size="lg" loading={loading}>
+            Set password &amp; sign in
+          </Button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

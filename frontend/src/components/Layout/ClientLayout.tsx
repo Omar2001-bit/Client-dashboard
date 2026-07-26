@@ -3,9 +3,9 @@ import { FlaskConical, LogOut, MessageSquare, CalendarDays, CalendarPlus, BookOp
 import { useLogout } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useTutorial } from "@/hooks/useTutorial";
-import { Tutorial } from "@/components/Tutorial";
+import { Tutorial } from "@/components/tutorial/Tutorial";
 import { Logo } from "@/components/ui/Logo";
-import { FloatingChat } from "@/components/FloatingChat";
+import { FloatingChat } from "@/components/chat/FloatingChat";
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useClickUpConnected } from "@/hooks/useClientTimeline";

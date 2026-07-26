@@ -16,8 +16,11 @@ import {
   TD,
   EmptyState,
   Skeleton,
+  KPICard,
 } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
+import { formatSignedDecimal, formatSignedMoney, formatSignedNumber } from "@/lib/experimentFormatting";
+import { MetricCell } from "@/components/dashboard/MetricCell";
 import type { ExperimentMetricKey } from "@/types";
 import type { GA4EnrichedExperiment } from "@/hooks/useGA4Data";
 
@@ -33,46 +36,6 @@ function formatDateRange(startDate: string, endDate: string): string {
 
 function roundMetric(v: number): number {
   return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
-}
-
-function formatMoney(value: number, formatter: Intl.NumberFormat): string {
-  return value > 0 ? `+${formatter.format(value)}` : formatter.format(value);
-}
-function formatSignedNumber(value: number, formatter: Intl.NumberFormat): string {
-  return value > 0 ? `+${formatter.format(value)}` : formatter.format(value);
-}
-function formatSignedDecimal(value: number): string {
-  const f = Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (value > 0) return `+${f}`;
-  if (value < 0) return `-${f}`;
-  return "0";
-}
-function toneClass(value: number): string {
-  if (value > 0) return "text-emerald-700";
-  if (value < 0) return "text-red-600";
-  return "text-ink/60";
-}
-
-function KPICard({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "positive" | "negative" | "neutral";
-}) {
-  const color =
-    tone === "positive" ? "text-emerald-700" : tone === "negative" ? "text-red-600" : "text-ink";
-  return (
-    <div className="rounded-brand border border-ink/10 bg-white p-5 shadow-card">
-      <p className="text-xs font-semibold uppercase tracking-wider text-ink/40">{label}</p>
-      <p className={`mt-2 text-2xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-ink/50">{sub}</p>}
-    </div>
-  );
 }
 
 export function GA4DashboardPage() {
@@ -192,38 +155,33 @@ export function GA4DashboardPage() {
           {/* KPI Cards — same 3 primary metrics as Convert dashboard */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <KPICard
-              label="Revenue Uplift"
-              value={formatMoney(aggregated.revenue, money)}
-              sub={`${aggregated.count} experiment${aggregated.count !== 1 ? "s" : ""} · GA4 audiences`}
-              tone={aggregated.revenue > 0 ? "positive" : aggregated.revenue < 0 ? "negative" : "neutral"}
+              title="Revenue Uplift"
+              value={formatSignedMoney(aggregated.revenue, money)}
+              note={`${aggregated.count} experiment${aggregated.count !== 1 ? "s" : ""} · GA4 audiences`}
             />
             <KPICard
-              label="Purchases Uplift"
+              title="Purchases Uplift"
               value={formatSignedNumber(aggregated.purchases, number)}
-              sub="Total across all experiments"
-              tone={aggregated.purchases > 0 ? "positive" : aggregated.purchases < 0 ? "negative" : "neutral"}
+              note="Total across all experiments"
             />
             <KPICard
-              label="Products Uplift"
+              title="Products Uplift"
               value={formatSignedNumber(aggregated.products, number)}
-              sub="Total items purchased uplift"
-              tone={aggregated.products > 0 ? "positive" : aggregated.products < 0 ? "negative" : "neutral"}
+              note="Total items purchased uplift"
             />
           </div>
 
           {/* Secondary rate KPIs */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <KPICard
-              label="Avg. CVR Uplift"
+              title="Avg. CVR Uplift"
               value={`${formatSignedDecimal(aggregated.cvr)}pts`}
-              sub="Average across experiments"
-              tone={aggregated.cvr > 0 ? "positive" : aggregated.cvr < 0 ? "negative" : "neutral"}
+              note="Average across experiments"
             />
             <KPICard
-              label="Avg. RPV Uplift"
-              value={formatMoney(aggregated.rpv, rpvMoney)}
-              sub="Average across experiments"
-              tone={aggregated.rpv > 0 ? "positive" : aggregated.rpv < 0 ? "negative" : "neutral"}
+              title="Avg. RPV Uplift"
+              value={formatSignedMoney(aggregated.rpv, rpvMoney)}
+              note="Average across experiments"
             />
           </div>
 
@@ -275,12 +233,12 @@ export function GA4DashboardPage() {
                           <TD>
                             <StatusBadge status={experiment.status} />
                           </TD>
-                          <MetricCell experiment={experiment} metric="revenue" formatValue={(v) => formatMoney(v, money)} />
-                          <MetricCell experiment={experiment} metric="rpv" formatValue={(v) => formatMoney(v, rpvMoney)} />
-                          <MetricCell experiment={experiment} metric="purchases" formatValue={(v) => formatSignedNumber(v, number)} />
-                          <MetricCell experiment={experiment} metric="products" formatValue={(v) => formatSignedNumber(v, number)} />
-                          <MetricCell experiment={experiment} metric="cvr" formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
-                          <MetricCell experiment={experiment} metric="aov" formatValue={(v) => formatMoney(v, rpvMoney)} />
+                          <MetricCell uplift={experiment.uplifts?.revenue} formatValue={(v) => formatSignedMoney(v, money)} />
+                          <MetricCell uplift={experiment.uplifts?.rpv} formatValue={(v) => formatSignedMoney(v, rpvMoney)} />
+                          <MetricCell uplift={experiment.uplifts?.purchases} formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell uplift={experiment.uplifts?.products} formatValue={(v) => formatSignedNumber(v, number)} />
+                          <MetricCell uplift={experiment.uplifts?.cvr} formatValue={(v) => `${formatSignedDecimal(v)}pts`} />
+                          <MetricCell uplift={experiment.uplifts?.aov} formatValue={(v) => formatSignedMoney(v, rpvMoney)} />
                         </TR>
                       ))}
                     </TBody>
@@ -292,24 +250,5 @@ export function GA4DashboardPage() {
         </>
       )}
     </div>
-  );
-}
-
-function MetricCell({
-  experiment,
-  metric,
-  formatValue,
-}: {
-  experiment: GA4EnrichedExperiment;
-  metric: ExperimentMetricKey;
-  formatValue: (value: number) => string;
-}) {
-  const uplift = experiment.uplifts?.[metric];
-  if (!uplift) return <TD className="whitespace-nowrap text-ink/40">--</TD>;
-  return (
-    <TD className="whitespace-nowrap">
-      <div className={`font-semibold ${toneClass(uplift.uplift)}`}>{formatValue(uplift.uplift)}</div>
-      <div className="text-xs text-ink/45">{formatSignedDecimal(uplift.upliftPercent)}%</div>
-    </TD>
   );
 }

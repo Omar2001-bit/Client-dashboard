@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp, Inbox } from "lucide-react";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { metricLabel } from "@/lib/ga4Reports/metricLabels";
 import { bucketOverlapsRange, detectGranularity } from "@/lib/ga4Reports/dates";
 import { deltaPct, fmtBucketLabel, fmtDelta, fmtValue, humanize } from "@/lib/ga4Reports/format";
@@ -80,45 +81,45 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
       : undefined;
   return (
     <div className="animate-fade-in overflow-x-auto rounded-xl border border-ink/10 bg-white">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-ink/10 text-left text-xs uppercase tracking-wider text-ink/50">
-            <th className="px-4 py-3 font-medium">{dimList.map(humanize).join(" · ")}</th>
+      <Table>
+        <THead>
+          <TR className="hover:bg-transparent">
+            <TH className="px-4 py-3">{dimList.map(humanize).join(" · ")}</TH>
             {data.metrics.map((m) => (
-              <th key={m} className="px-4 py-3 text-right font-medium" colSpan={hasCompare ? 3 : 1}>
+              <TH key={m} className="px-4 py-3 text-right" colSpan={hasCompare ? 3 : 1}>
                 {metricLabel(m, metricsMeta)}
-              </th>
+              </TH>
             ))}
-          </tr>
+          </TR>
           {hasCompare && (
-            <tr className="border-b border-ink/10 text-right text-[11px] text-ink/50">
-              <th className="px-4 py-1.5 text-left font-normal"></th>
+            <TR className="text-right text-[11px] text-ink/50 hover:bg-transparent">
+              <TH className="px-4 py-1.5 text-left font-normal"></TH>
               {data.metrics.map((m) => (
                 <FragmentHeads key={m} />
               ))}
-            </tr>
+            </TR>
           )}
-        </thead>
-        <tbody>
+        </THead>
+        <TBody>
           {data.rows.length === 0 ? (
-            <tr>
-              <td colSpan={colCount} className="px-4 py-8 text-center text-xs text-ink/50">
+            <TR className="hover:bg-transparent">
+              <TD colSpan={colCount} className="px-4 py-8 text-center text-xs text-ink/50">
                 <div className="flex flex-col items-center gap-1.5">
                   <Inbox size={18} />
                   No rows for this breakdown.
                 </div>
-              </td>
-            </tr>
+              </TD>
+            </TR>
           ) : (
             data.rows.map((r, ri) => {
               const period = periodOf(r.dim);
               return (
-              <tr
+              <TR
                 key={`${r.dim}-${ri}`}
-                className="border-b border-ink/5 transition-colors duration-100 last:border-0 hover:bg-ink/[0.03]"
+                className="hover:bg-ink/[0.03]"
                 style={period ? { background: `${period.color}14` } : undefined}
               >
-                <td className="max-w-[280px] truncate px-4 py-2.5 text-ink/70">
+                <TD className="max-w-[280px] truncate px-4 py-2.5 text-ink/70">
                   {period && (
                     <span
                       className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
@@ -132,7 +133,7 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
                       vs {granularity ? fmtBucketLabel(granularity, r.bDim) : r.bDim}
                     </span>
                   )}
-                </td>
+                </TD>
                 {data.metrics.map((m, mi) => {
                   const type = data.metricHeaders[mi]?.type;
                   const a = r.a[mi] ?? 0;
@@ -140,17 +141,17 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
                   return hasCompare ? (
                     <FragmentCells key={m} a={a} b={b} type={type} currencyCode={data.currencyCode} invert={metricIsInverted(m)} />
                   ) : (
-                    <td key={m} className="px-4 py-2.5 text-right tabular-nums text-ink">
+                    <TD key={m} className="px-4 py-2.5 text-right tabular-nums text-ink">
                       {fmtValue(a, type, data.currencyCode)}
-                    </td>
+                    </TD>
                   );
                 })}
-              </tr>
+              </TR>
               );
             })
           )}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }
@@ -158,9 +159,9 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
 function FragmentHeads() {
   return (
     <>
-      <th className="px-2 py-1.5 font-normal">Current</th>
-      <th className="px-2 py-1.5 font-normal">Previous</th>
-      <th className="px-2 py-1.5 font-normal">Δ</th>
+      <TH className="px-2 py-1.5 font-normal">Current</TH>
+      <TH className="px-2 py-1.5 font-normal">Previous</TH>
+      <TH className="px-2 py-1.5 font-normal">Δ</TH>
     </>
   );
 }
@@ -180,13 +181,13 @@ function FragmentCells({
 }) {
   return (
     <>
-      <td className="px-2 py-2.5 text-right tabular-nums text-ink">{fmtValue(a, type, currencyCode)}</td>
-      <td className="px-2 py-2.5 text-right tabular-nums text-ink/50">
+      <TD className="px-2 py-2.5 text-right tabular-nums text-ink">{fmtValue(a, type, currencyCode)}</TD>
+      <TD className="px-2 py-2.5 text-right tabular-nums text-ink/50">
         {b === undefined ? "–" : fmtValue(b, type, currencyCode)}
-      </td>
-      <td className="px-2 py-2.5 text-right">
+      </TD>
+      <TD className="px-2 py-2.5 text-right">
         <Delta value={deltaPct(a, b)} invert={invert} />
-      </td>
+      </TD>
     </>
   );
 }
