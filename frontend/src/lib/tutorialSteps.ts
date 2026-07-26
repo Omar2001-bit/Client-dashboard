@@ -213,6 +213,111 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     position: "top",
   },
 
+  // ── GA4 Data View ──────────────────────────────────────────────────────────
+  {
+    id: "ga4_intro",
+    title: "GA4 Data View",
+    description:
+      "GA4 Data View gives you two routes into Google Analytics 4 data for your experiments — a Dashboard View with aggregated KPIs, and an Experiments View with a per-experiment breakdown. This is separate from the Convert-based Experiments data you just saw.",
+    target: null,
+    route: "/dashboard/ga4",
+    position: "center",
+  },
+
+  {
+    id: "ga4_dashboard_kpis",
+    title: "GA4 Dashboard View",
+    description:
+      "These KPI cards summarize Revenue, Purchases, and Products Uplift aggregated across every GA4-tracked experiment, comparing the original to the variation.",
+    target: "[data-tutorial='ga4-kpi-cards']",
+    route: "/dashboard/ga4/dashboard",
+    position: "bottom",
+  },
+
+  // ── Page Speed ─────────────────────────────────────────────────────────────
+  {
+    id: "page_speed_intro",
+    title: "Page Speed",
+    description:
+      "Page Speed runs Google PageSpeed Insights reports across your entire site. Toggle Mobile or Desktop, run a report in the background, and track Lighthouse scores and Core Web Vitals over time.",
+    target: null,
+    route: "/dashboard/page-speed",
+    position: "center",
+  },
+
+  {
+    id: "page_speed_controls",
+    title: "Running a Report",
+    description:
+      "Toggle between Mobile and Desktop strategy, then click 'Run Report' to start — a progress bar tracks the background job. Click 'Stop Report' at any time to cancel. Once you have 2 or more past runs, 'Compare Runs' becomes available for side-by-side comparisons.",
+    target: "[data-tutorial='page-speed-controls']",
+    route: "/dashboard/page-speed",
+    position: "bottom",
+  },
+
+  {
+    id: "page_speed_table",
+    title: "Page-by-Page Results",
+    description:
+      "Every crawled page gets its own row with its own scores. Search by URL or click a column header to sort. Past Runs history is available below so you can revisit older reports.",
+    target: "[data-tutorial='page-speed-table']",
+    route: "/dashboard/page-speed",
+    position: "top",
+  },
+
+  // ── Audit Findings ─────────────────────────────────────────────────────────
+  {
+    id: "audit_findings_intro",
+    title: "Audit Findings",
+    description:
+      "If enabled for your account, Audit Findings tracks the progress of fixes from your tracking & analytics audit — a KPI summary plus a filterable, read-only list of findings.",
+    target: null,
+    route: "/dashboard/audit-findings",
+    position: "center",
+  },
+
+  {
+    id: "audit_findings_list",
+    title: "Findings List & Detail",
+    description:
+      "Click any finding to see plain-English or technical detail. Tick 'Show full details' to reveal the fix, verification steps, and documentation links.",
+    target: "[data-tutorial='audit-findings-list']",
+    route: "/dashboard/audit-findings",
+    position: "right",
+  },
+
+  // ── Analytics Reports ──────────────────────────────────────────────────────
+  {
+    id: "analytics_reports_grid",
+    title: "Analytics Reports",
+    description:
+      "If enabled for your account, Analytics Reports is a read-only grid of custom GA4 reports built for you. Click any card to open the full report with charts, funnels, and key numbers.",
+    target: "[data-tutorial='analytics-reports-grid']",
+    route: "/dashboard/analytics-reports",
+    position: "top",
+  },
+
+  // ── Project Tasks ──────────────────────────────────────────────────────────
+  {
+    id: "tasks_intro",
+    title: "Project Tasks",
+    description:
+      "If your ClickUp workspace is connected, Project Tasks shows your tasks synced automatically — grouped by list, fully read-only.",
+    target: null,
+    route: "/dashboard/tasks",
+    position: "center",
+  },
+
+  {
+    id: "tasks_viewer",
+    title: "Browsing Your Tasks",
+    description:
+      "Click a list header to expand or collapse it — subtasks are nested underneath their parent task, each with a status badge, due date, and assignees. Click any task to open its detail view.",
+    target: "[data-tutorial='tasks-viewer']",
+    route: "/dashboard/tasks",
+    position: "top",
+  },
+
   // ── Support ────────────────────────────────────────────────────────────────
   {
     id: "support_intro",

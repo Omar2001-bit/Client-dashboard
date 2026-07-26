@@ -556,7 +556,7 @@ export function PageSpeedPage() {
             Analyze page performance across your entire site using Google PageSpeed Insights.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" data-tutorial="page-speed-controls">
           {/* Strategy Toggle */}
           <div className="inline-flex overflow-hidden rounded-lg border border-ink/10 bg-white text-sm font-medium shadow-sm">
             <button
@@ -820,7 +820,7 @@ export function PageSpeedPage() {
 
       {/* Page-by-Page Table */}
       {results.length > 0 && (
-        <Card>
+        <Card data-tutorial="page-speed-table">
           <CardHeader className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-ink">Page-by-Page Results</h2>

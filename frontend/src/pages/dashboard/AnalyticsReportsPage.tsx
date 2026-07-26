@@ -30,7 +30,7 @@ export function AnalyticsReportsPage() {
         <p className="mt-1 text-sm text-ink/50">Custom GA4 reports built for your account.</p>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-8" data-tutorial="analytics-reports-grid">
         {grouped.map(([group, groupReports]) => (
           <div key={group}>
             {group !== "Ungrouped" && (

@@ -249,7 +249,7 @@ export function ExperimentDetailPage() {
           ))}
         </div>
       ) : (
-        <Card data-tutorial="experiment-goals">
+        <Card data-tutorial="experiment-goals-empty">
           <CardHeader>
             <h2 className="font-semibold text-ink">Goals</h2>
           </CardHeader>
