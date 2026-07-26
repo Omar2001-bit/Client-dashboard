@@ -76,7 +76,7 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     id: "clients_table",
     title: "Client Table — Preview & Edit",
     description:
-      "Each row shows company, contact, status (Active / Inactive), and engagement dates. 'Preview' opens the client's dashboard in a new tab exactly as they see it. 'Edit' opens the full 4-tab management page.",
+      "Each row shows company, contact, status (Active / Inactive), and engagement dates. 'Preview' opens the client's dashboard in a new tab exactly as they see it. 'Edit' opens the full 5-tab management page.",
     target: "[data-tutorial='admin-clients-table']",
     route: "/admin/clients",
     position: "top",
@@ -95,9 +95,9 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
   // ── Client detail — intro ──────────────────────────────────────────────────
   {
     id: "client_detail_intro",
-    title: "Inside a Client — 4 Tabs",
+    title: "Inside a Client — 5 Tabs",
     description:
-      "Opening a client takes you to a 4-tab page. We'll walk through each tab now. Watch the highlighted areas as we go.",
+      "Opening a client takes you to a 5-tab page. We'll walk through each tab now. Watch the highlighted areas as we go.",
     target: null,
     route: "/admin/clients/{clientId}",
     position: "center",
@@ -106,7 +106,7 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     id: "client_detail_tabs",
     title: "Tab Navigation",
     description:
-      "These four tabs separate all client management work. Overview handles details and credentials, Convert Data Pulls handles syncing, Dashboard Settings controls what the client sees, and Timeline Builder is the project roadmap editor.",
+      "These five tabs separate all client management work. Overview handles details and credentials, Convert Data Pulls handles syncing, Dashboard Settings controls what the client sees, Timeline Builder is the project roadmap editor, and Audit Findings tracks fixes from the client's tracking & analytics audit.",
     target: "[data-tutorial='admin-client-tabs']",
     route: "/admin/clients/{clientId}",
     position: "bottom",
@@ -165,6 +165,17 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
       "Build the project roadmap the client sees on their Timeline page. Add phases with names, colors, start and end dates, and descriptions. Link phases to ClickUp tasks so the client can see real-time task status. Connect ClickUp once via the Settings page to enable linking.",
     target: "[data-tutorial='admin-client-timeline']",
     route: "/admin/clients/{clientId}?tab=timeline",
+    position: "top",
+  },
+
+  // ── Audit Findings tab ─────────────────────────────────────────────────────
+  {
+    id: "client_audit_content",
+    title: "Audit Findings Tab",
+    description:
+      "Manage this client's tracking & analytics audit findings here. Create or edit findings individually, or bulk-upload via CSV for large imports. Sort by severity, tool, or progress, mark each finding fixed / not fixed / reset, and add private admin-only notes the client never sees. Findings can be soft-deleted and restored, and an admin-only filter reveals correct/checklist rows normally hidden from the client.",
+    target: "[data-tutorial='admin-client-audit']",
+    route: "/admin/clients/{clientId}?tab=audit",
     position: "top",
   },
 
@@ -284,7 +295,7 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     id: "admin_complete",
     title: "You're all set! 🎉",
     description:
-      "You've seen everything — client management, all four detail tabs, the full log viewer, support, and settings. You can relaunch this tutorial any time from the Docs page in the sidebar.",
+      "You've seen everything — client management, all five detail tabs, the full log viewer, support, and settings. You can relaunch this tutorial any time from the Docs page in the sidebar.",
     target: null,
     route: "/admin",
     position: "center",

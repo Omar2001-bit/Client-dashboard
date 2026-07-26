@@ -114,17 +114,28 @@ const SECTIONS: DocSection[] = [
       {
         title: "Preview vs Edit",
         description:
-          "Each client row has two action links. 'Preview' opens the client's dashboard in a new tab exactly as they see it — useful for verifying data and settings before a call. 'Edit' opens the full 4-tab management page.",
+          "Each client row has two action links. 'Preview' opens the client's dashboard in a new tab exactly as they see it — useful for verifying data and settings before a call. 'Edit' opens the full 5-tab management page.",
       },
       {
-        title: "Client Management — 4 Tabs",
+        title: "Client Management — 5 Tabs",
         description:
-          "The client detail page is organized into four tabs to keep related work together.",
+          "The client detail page is organized into five tabs to keep related work together.",
         steps: [
-          "Overview — Company details, engagement dates, Convert credentials, password management",
+          "Overview — Company details, engagement dates, Convert credentials, GA4 property, password management",
           "Convert Data Pulls — Incremental pull and full refresh from Convert.com",
           "Dashboard Settings — Experiment visibility, manual experiments, admin notes",
           "Timeline Builder — Project phases linked to ClickUp tasks",
+          "Audit Findings — Manage tracking/analytics audit findings for this client",
+        ],
+      },
+      {
+        title: "GA4 Property & Analytics Reports (Overview Tab)",
+        description:
+          "Two cards inside the Overview tab control the client's GA4-powered features — these are easy to miss since they aren't in Dashboard Settings.",
+        steps: [
+          "GA4 Property — select which GA4 property is linked to this client to enable their GA4 Data View",
+          "Analytics Reports — click 'Manage reports' to build custom GA4 reports for this client",
+          "Inside the report manager, tick 'Show in client dashboard' to turn on the client's Analytics Reports nav item",
         ],
       },
       {
@@ -140,12 +151,14 @@ const SECTIONS: DocSection[] = [
       {
         title: "Dashboard Settings Tab",
         description:
-          "Control exactly what the client sees on their dashboard from this tab.",
+          "Control exactly what the client sees on their dashboard from this tab. Note: GA4 Reports and Audit Findings visibility are NOT controlled here — see below.",
         steps: [
           "Hide or show individual experiments — hidden experiments are excluded from all KPI totals and charts",
           "Add manual experiments — enter custom uplift data for tests not yet in Convert.com",
           "Edit experiment names and add admin notes visible to the client inside the experiment detail view",
           "Click 'Preview as Client' to see the dashboard exactly as the client sees it",
+          "GA4 Reports visibility is instead controlled from the Overview tab's Analytics Reports report manager",
+          "Audit Findings visibility turns on automatically the first time a finding is created for this client — there is no manual toggle for it",
         ],
       },
       {
@@ -158,6 +171,21 @@ const SECTIONS: DocSection[] = [
           "Link phases to ClickUp tasks — the client sees real-time task status",
           "Connect ClickUp once in the Settings page to enable task linking",
           "Click Save to publish the timeline to the client dashboard",
+        ],
+      },
+      {
+        title: "Audit Findings Tab",
+        description:
+          "Manage this client's tracking & analytics audit findings — create them individually or bulk-import via CSV.",
+        steps: [
+          "Create or edit findings via the finding form dialog",
+          "Bulk upload via CSV for large imports (or seed via the import script)",
+          "Sort by severity, tool, or progress",
+          "Mark a finding's progress as fixed, not fixed, or reset",
+          "Add private admin-only notes — these are never shown to the client",
+          "Soft-delete and restore findings as needed",
+          "Toggle the admin-only 'show correct/checklist rows' filter to see rows normally hidden from the client",
+          "The client's 'Audit Findings' nav item turns on automatically the first time a finding exists for them",
         ],
       },
       {

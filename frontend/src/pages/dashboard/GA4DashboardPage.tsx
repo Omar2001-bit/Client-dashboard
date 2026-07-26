@@ -153,7 +153,7 @@ export function GA4DashboardPage() {
       {!isLoading && !error && (
         <>
           {/* KPI Cards — same 3 primary metrics as Convert dashboard */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" data-tutorial="ga4-kpi-cards">
             <KPICard
               title="Revenue Uplift"
               value={formatSignedMoney(aggregated.revenue, money)}

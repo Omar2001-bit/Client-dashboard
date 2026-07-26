@@ -72,6 +72,7 @@ export function AuditFindingsPage() {
       <div
         className="grid grid-cols-1 lg:grid-cols-[380px_1fr] rounded-brand border border-ink/10 bg-white overflow-hidden"
         style={{ height: "70vh" }}
+        data-tutorial="audit-findings-list"
       >
         <div className="border-b lg:border-b-0 lg:border-r border-ink/10 h-full">
           <AuditFindingList findings={filtered} selectedId={selectedId} onSelect={handleSelect} businessMode={businessMode} />

@@ -22,13 +22,18 @@ export function Dialog({ open, onClose, title, children, footer, className }: Di
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 [overscroll-behavior:contain]">
       <div
         className="absolute inset-0 bg-ink/50 animate-fade-in"
         onClick={onClose}

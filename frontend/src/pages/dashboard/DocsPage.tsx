@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { BookOpen, LayoutDashboard, FlaskConical, BarChart2, CalendarDays, CalendarPlus, MessageSquare, User, ChevronRight, Play } from "lucide-react";
+import { BookOpen, LayoutDashboard, FlaskConical, BarChart2, BarChart3, Gauge, CalendarDays, CalendarPlus, MessageSquare, ListChecks, LineChart, ClipboardList, User, ChevronRight, Play } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface DocSection {
@@ -34,11 +34,14 @@ const SECTIONS: DocSection[] = [
         description: "Use the sidebar on the left to move between sections. Each icon takes you to a different part of the dashboard.",
         steps: [
           "A/B Testing Results → Your experiments, metrics, and charts",
+          "GA4 Data View → Google Analytics 4 metrics for your experiments",
+          "Page Speed → Site performance audits via Google PageSpeed Insights",
           "Timeline → Your project roadmap and phases",
           "Book a Meeting → Schedule time with our team",
           "Support → Chat directly with us",
           "Docs → This documentation page (you are here)",
           "Profile → Change your account password",
+          "Audit Findings, Analytics Reports, and Project Tasks appear automatically once those features are enabled or connected for your account",
         ],
       },
       {
@@ -219,6 +222,91 @@ const SECTIONS: DocSection[] = [
     ],
   },
   {
+    id: "ga4",
+    icon: BarChart3,
+    title: "GA4 Data View",
+    subtitle: "Google Analytics 4 metrics for your experiments",
+    content: [
+      {
+        title: "Choosing a view",
+        description:
+          "GA4 Data View gives you two routes into your Google Analytics 4 experiment data, sourced from GA4 audiences named 'Convert {experimentId}-{variationId}'. This is separate from the Convert-based Experiments data documented above.",
+        steps: [
+          "Click 'GA4 Data View' in the left sidebar",
+          "'Dashboard View' shows aggregated KPIs across all GA4-tracked experiments",
+          "'Experiments View' shows a per-experiment original vs. variation breakdown",
+          "Both views are always available in the sidebar",
+        ],
+      },
+      {
+        title: "GA4 Dashboard View",
+        description: "Summary KPIs aggregated across every GA4-tracked experiment, comparing the original to the variation.",
+        steps: [
+          "Revenue, Purchases, and Products Uplift cards summarize impact across all GA4 experiments",
+          "Average CVR and RPV Uplift show rate-based impact",
+          "Scroll down to see the per-experiment list beneath the KPI cards",
+        ],
+      },
+      {
+        title: "GA4 Experiments View",
+        description: "A per-experiment breakdown of original vs. variation audiences, drawn directly from GA4.",
+        steps: [
+          "Open 'Experiments View' from the GA4 Data View chooser",
+          "Each row shows the original and variation audience side by side",
+          "Use this to cross-check GA4 numbers against your Convert experiment results",
+        ],
+      },
+    ],
+  },
+  {
+    id: "page-speed",
+    icon: Gauge,
+    title: "Page Speed",
+    subtitle: "Site performance audits via Google PageSpeed Insights",
+    content: [
+      {
+        title: "Running a report",
+        description: "Page Speed crawls your site and runs Google PageSpeed Insights against every page.",
+        steps: [
+          "Click 'Page Speed' in the left sidebar",
+          "Toggle between Mobile and Desktop strategy",
+          "Pages are pulled automatically from your sitemap, or you can add URLs manually",
+          "Click 'Run Report' to start — a progress bar tracks the background job",
+          "Click 'Stop Report' at any time to cancel; partial results are kept",
+        ],
+      },
+      {
+        title: "Reading your scores",
+        description: "Each run produces four Lighthouse scores plus detailed Core Web Vitals.",
+        steps: [
+          "Performance, Accessibility, SEO, and Best Practices are shown as gauges",
+          "Core Web Vitals (LCP, FCP, CLS, TBT, SI, INP) show detailed loading and interactivity metrics",
+          "Expand the full audit metrics panel for every Lighthouse check",
+          "PSI screenshots and load filmstrips show how the page rendered over time",
+        ],
+      },
+      {
+        title: "Page-by-page table",
+        description: "Every crawled page gets its own row with its own scores.",
+        steps: [
+          "Use the search box to filter by URL",
+          "Click a column header to sort by any score or metric",
+          "Click a row's PSI link to open the official PageSpeed Insights report",
+        ],
+      },
+      {
+        title: "Past Runs & comparing reports",
+        description: "Every report you run is saved so you can track performance over time.",
+        steps: [
+          "Scroll down to 'Past Runs' to see every previous report with its date, strategy, and average scores",
+          "Once you have 2 or more runs, click 'Compare Runs'",
+          "Select two or more runs to see side-by-side bar charts for every metric",
+          "Expand the per-page breakdown table to compare individual pages across runs",
+        ],
+      },
+    ],
+  },
+  {
     id: "timeline",
     icon: CalendarDays,
     title: "Timeline",
@@ -241,7 +329,7 @@ const SECTIONS: DocSection[] = [
         steps: [
           "Phase name and colour are shown on the block",
           "Hover over a phase to see its start and end dates",
-          "Click a phase to see its description, deliverables, and any ClickUp tasks",
+          "Click a phase to see its description and deliverables — linked ClickUp tasks for the whole project are also viewable in the Project Tasks section",
           "Tasks show their status (Open, In Progress, Complete)",
         ],
       },
@@ -303,6 +391,88 @@ const SECTIONS: DocSection[] = [
           "Type and send your message",
           "Click the bubble again (or the X) to close it",
           "An unread badge appears if our team has replied",
+        ],
+      },
+    ],
+  },
+  {
+    id: "audit-findings",
+    icon: ListChecks,
+    title: "Audit Findings",
+    subtitle: "Track fixes from your tracking & analytics audit",
+    content: [
+      {
+        title: "Understanding your findings",
+        description:
+          "This section is only visible if your account has audit tracking enabled — it may not appear in your sidebar. KPI cards summarize Total findings, Fixed, and Completion %. Select any finding from the list to see its full detail.",
+        steps: [
+          "Click 'Audit Findings' in the left sidebar (if visible)",
+          "Review the Total / Fixed / Completion % cards at the top",
+          "Click any finding in the list to open its detail view",
+        ],
+      },
+      {
+        title: "Filtering findings",
+        description: "Narrow the list down using the filter controls above it.",
+        steps: [
+          "Use the filter controls to narrow findings by severity, tool, or status",
+          "Clear the filters to see the full list again",
+        ],
+      },
+      {
+        title: "Plain-English vs. technical view",
+        description: "Each finding can be read in simplified business language or in full technical detail.",
+        steps: [
+          "Open any finding from the list",
+          "Toggle between plain-English and technical wording",
+          "Tick 'Show full details' to reveal the fix, verification steps, and documentation links",
+        ],
+      },
+    ],
+  },
+  {
+    id: "analytics-reports",
+    icon: LineChart,
+    title: "Analytics Reports",
+    subtitle: "Custom GA4 reports built for your account",
+    content: [
+      {
+        title: "Viewing your reports",
+        description:
+          "This section is only visible if your account has analytics reports enabled — it may not appear in your sidebar. It's a read-only grid of custom GA4 reports built for you.",
+        steps: [
+          "Click 'Analytics Reports' in the left sidebar (if visible)",
+          "Reports are grouped into sections; click any report card to open it",
+          "The full report view shows charts, funnels, and key numbers",
+          "If no reports have been shared with you yet, you'll see an empty state",
+        ],
+      },
+    ],
+  },
+  {
+    id: "tasks",
+    icon: ClipboardList,
+    title: "Project Tasks",
+    subtitle: "Your ClickUp tasks, synced automatically",
+    content: [
+      {
+        title: "Browsing your tasks",
+        description:
+          "This section is only visible once your ClickUp workspace is connected — it may not appear in your sidebar. Tasks are grouped by ClickUp list and fully read-only.",
+        steps: [
+          "Click 'Project Tasks' in the left sidebar (if visible)",
+          "Click a list header to expand or collapse it",
+          "Subtasks are nested underneath their parent task",
+          "Each task shows a status badge, due date, and assignees",
+        ],
+      },
+      {
+        title: "Task detail",
+        description: "Click any task to see its full description, assignees, and dates.",
+        steps: [
+          "Click any task row to open its detail view",
+          "Review the description, assignees, and start/due dates",
+          "Close the detail view with the X, Escape, or by clicking outside it",
         ],
       },
     ],
