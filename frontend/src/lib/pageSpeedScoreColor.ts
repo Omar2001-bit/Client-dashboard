@@ -7,12 +7,6 @@ export function scoreColor(score: number): string {
   return "text-[#ff4e42]";
 }
 
-export function scoreBg(score: number): string {
-  if (score >= 90) return "bg-[#0cce6b]/10 border-[#0cce6b]/25";
-  if (score >= 50) return "bg-[#ffa400]/10 border-[#ffa400]/25";
-  return "bg-[#ff4e42]/10 border-[#ff4e42]/25";
-}
-
 export function scoreRingColor(score: number): string {
   if (score >= 90) return "#0cce6b";
   if (score >= 50) return "#ffa400";

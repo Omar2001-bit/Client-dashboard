@@ -44,12 +44,3 @@ export function getTaskGanttLayout(task: ClickUpTask, start: Date, end: Date): T
   const width = Math.max(1.5, ((taskEnd.getTime() - taskStart.getTime()) / span) * 100);
   return { left, width, isOpen: !task.dateClosed };
 }
-
-export function formatGanttRange(task: ClickUpTask): string {
-  const start = barStart(task);
-  const startLabel = start ? start.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "-";
-  const endLabel = task.dateClosed
-    ? new Date(task.dateClosed).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-    : "Ongoing";
-  return `${startLabel} → ${endLabel}`;
-}

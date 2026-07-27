@@ -697,30 +697,6 @@ async function runGa4Report(auth, req) {
   return mergeReports(req, rawMetrics, realMetrics, eventNames, convRateMetrics, base, pivot, denom, dims);
 }
 
-async function listGa4Properties(auth) {
-  const analyticsAdmin = google.analyticsadmin({ version: "v1alpha", auth });
-  const out = [];
-  let pageToken;
-  do {
-    const resp = await analyticsAdmin.accountSummaries.list({
-      pageSize: 200,
-      ...(pageToken ? { pageToken } : {}),
-    });
-    for (const acc of resp.data.accountSummaries ?? []) {
-      for (const p of acc.propertySummaries ?? []) {
-        out.push({
-          property: p.property,
-          displayName: p.displayName,
-          account: acc.account,
-          accountName: acc.displayName,
-        });
-      }
-    }
-    pageToken = resp.data.nextPageToken;
-  } while (pageToken);
-  return out;
-}
-
 async function getGa4Metadata(auth, property) {
   const analyticsData = google.analyticsdata({ version: "v1beta", auth });
   const resp = await analyticsData.properties.getMetadata({ name: `${property}/metadata` });
@@ -804,7 +780,6 @@ async function runGa4FunnelReport(auth, property, funnel, range) {
 }
 
 module.exports = {
-  listGa4Properties,
   getGa4Metadata,
   runGa4Report,
   runGa4FunnelReport,

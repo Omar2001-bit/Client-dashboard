@@ -159,7 +159,7 @@ export function addDays(date: Date, days: number): Date {
   return copy;
 }
 
-export function diffDays(start: Date, end: Date): number {
+function diffDays(start: Date, end: Date): number {
   return Math.round((startOfDay(end).getTime() - startOfDay(start).getTime()) / DAY_MS);
 }
 

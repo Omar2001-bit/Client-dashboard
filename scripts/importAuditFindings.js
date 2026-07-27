@@ -37,7 +37,7 @@ function usageAndExit(message) {
 }
 
 function defaultServiceAccountPath() {
-  const fallback = path.join(process.cwd(), "functions", "serviceAccountKey.json");
+  const fallback = path.join(process.cwd(), "server", "serviceAccountKey.json");
   return fs.existsSync(fallback) ? fallback : null;
 }
 
@@ -51,7 +51,7 @@ if (!CLIENT_ID) usageAndExit("Missing --client-id / AUDIT_CLIENT_ID.");
 if (!HTML_PATH) usageAndExit("Missing --html-path / AUDIT_SOURCE_HTML.");
 if (!SERVICE_ACCOUNT_PATH) {
   usageAndExit(
-    "Missing --service-account / NEW_SERVICE_ACCOUNT_KEY_PATH, and functions/serviceAccountKey.json does not exist locally."
+    "Missing --service-account / NEW_SERVICE_ACCOUNT_KEY_PATH, and server/serviceAccountKey.json does not exist locally."
   );
 }
 if (!fs.existsSync(HTML_PATH)) usageAndExit(`--html-path does not exist: ${HTML_PATH}`);

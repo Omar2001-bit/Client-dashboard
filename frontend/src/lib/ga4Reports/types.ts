@@ -75,7 +75,7 @@ export const MAX_DIMENSIONS = 9;
 // eventName (dimension). A "virtual" metric like "event:purchase" carries that intent
 // through the report config/ReportRequest/ReportResponse unchanged in shape; the server
 // (server/ga4Reporting.js) is the only place that resolves it into the real query.
-export const EVENT_METRIC_PREFIX = "event:";
+const EVENT_METRIC_PREFIX = "event:";
 
 export function isEventMetric(apiName: string): boolean {
   return apiName.startsWith(EVENT_METRIC_PREFIX);
@@ -92,8 +92,8 @@ export function makeEventMetric(eventName: string): string {
 // Conversion rate for any event: eventCount for that event ÷ totalUsers (or ÷ sessions),
 // computed row-by-row and — separately, NOT by averaging rows — as totals-over-totals.
 // Same virtual-metric trick as event:*.
-export const CONV_USER_PREFIX = "convu:";
-export const CONV_SESSION_PREFIX = "convs:";
+const CONV_USER_PREFIX = "convu:";
+const CONV_SESSION_PREFIX = "convs:";
 export type ConvDenom = "totalUsers" | "sessions";
 
 export function isConvRateMetric(apiName: string): boolean {
@@ -118,7 +118,7 @@ export function makeConvRateMetric(eventName: string, denom: ConvDenom): string 
 // a drawer is normal browsing) and cart_empty_cta_click (a recovery click).
 const NEGATIVE_EVENT_PATTERN = /(remove|refund|return_request|error|fail|cancel|declin|exception|not_found|abandon)/;
 
-export function isNegativeEventName(eventName: string): boolean {
+function isNegativeEventName(eventName: string): boolean {
   return NEGATIVE_EVENT_PATTERN.test(eventName);
 }
 
@@ -200,7 +200,7 @@ export interface FunnelResponse {
 // neither has an atomic per-row unit to drag, so both stay whole-section-only draggable.
 // "numbers", "compare", and "insights" are entry containers: any card can move freely
 // between any of the three.
-export const SECTION_IDS = ["graph", "numbers", "insights", "funnels", "highlights", "compare"] as const;
+const SECTION_IDS = ["graph", "numbers", "insights", "funnels", "highlights", "compare"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 export const SECTION_TITLES: Record<SectionId, string> = {
@@ -212,7 +212,7 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   compare: "Compare metrics",
 };
 
-export const ENTRY_SECTIONS = ["numbers", "compare", "insights"] as const;
+const ENTRY_SECTIONS = ["numbers", "compare", "insights"] as const;
 export type EntrySectionId = (typeof ENTRY_SECTIONS)[number];
 
 export type EntryKind = "kpi" | "compare" | "insight";
@@ -227,7 +227,7 @@ export function entryKey(e: EntryRef): string {
 }
 
 /** Default home section for an entry kind — where strays/new entries land. */
-export function homeSection(kind: EntryKind): EntrySectionId {
+function homeSection(kind: EntryKind): EntrySectionId {
   return kind === "kpi" ? "numbers" : kind === "compare" ? "compare" : "insights";
 }
 

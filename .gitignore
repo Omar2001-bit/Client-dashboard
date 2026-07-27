@@ -8,11 +8,9 @@ frontend/dist/
 functions/lib/
 
 # Secrets — NEVER commit these
-functions/.env.local
 server/.env.local
-functions/serviceAccountKey.json
-functions/serviceAccountKey.*.json
-functions/*.json.key
+server/serviceAccountKey.json
+server/serviceAccountKey.*.json
 .env.local
 
 # Firebase emulator data

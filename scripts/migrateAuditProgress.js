@@ -47,7 +47,7 @@ function usageAndExit(message) {
 }
 
 function defaultServiceAccountPath() {
-  const fallback = path.join(process.cwd(), "functions", "serviceAccountKey.json");
+  const fallback = path.join(process.cwd(), "server", "serviceAccountKey.json");
   return fs.existsSync(fallback) ? fallback : null;
 }
 
@@ -73,7 +73,7 @@ if (!fs.existsSync(OLD_SERVICE_ACCOUNT_PATH)) {
 }
 if (!NEW_SERVICE_ACCOUNT_PATH) {
   usageAndExit(
-    "Missing --new-service-account / NEW_SERVICE_ACCOUNT_KEY_PATH, and functions/serviceAccountKey.json does not exist locally."
+    "Missing --new-service-account / NEW_SERVICE_ACCOUNT_KEY_PATH, and server/serviceAccountKey.json does not exist locally."
   );
 }
 
