@@ -6,19 +6,15 @@ import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import ReportPreviewCard from "@/components/ga4Reports/ReportPreviewCard";
 import { useGa4Reports } from "@/hooks/useGa4Reports";
-import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { groupGa4Reports } from "@/lib/ga4Reports/storage";
 import type { ClientDoc } from "@/types";
 
-// Admin-side report list for one client — a link-out from ClientDetailPage (see decision
-// (e) in the integration plan: the report builder is a full-page drag-and-drop editor,
-// so this follows the existing "Preview as Client" link-out precedent rather than
-// becoming a sixth ClientDetailPage tab.
-export function AdminAnalyticsReportsPage() {
+// Admin-side report list for one client. Rendered either standalone (its own route) or
+// embedded inside ClientDetailPage's "Reports" tab.
+export function AdminAnalyticsReportsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { clientId } = useParams<{ clientId: string }>();
   const [client, setClient] = useState<ClientDoc | null>(null);
   const { data: reports = [], isLoading } = useGa4Reports(clientId);
-  const { settings, settingsLoaded, saveSettings } = useDashboardSettings(clientId);
 
   useEffect(() => {
     if (!clientId) return;
@@ -32,31 +28,24 @@ export function AdminAnalyticsReportsPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link
-            to={`/admin/clients/${clientId}`}
-            aria-label="Back to client"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-ink/15 text-ink/70 transition-colors hover:border-ink/30 hover:text-ink"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold text-ink">Analytics Reports</h1>
-            {client && <p className="truncate text-sm text-ink/50">{client.name}</p>}
+        {embedded ? (
+          <div />
+        ) : (
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to={`/admin/clients/${clientId}`}
+              aria-label="Back to client"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-ink/15 text-ink/70 transition-colors hover:border-ink/30 hover:text-ink"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold text-ink">Analytics Reports</h1>
+              {client && <p className="truncate text-sm text-ink/50">{client.name}</p>}
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex items-center gap-3">
-          {settingsLoaded && (
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={!!settings.ga4ReportsEnabled}
-                onChange={(e) => saveSettings({ ...settings, ga4ReportsEnabled: e.target.checked })}
-                className="h-4 w-4 cursor-pointer accent-brand-500"
-              />
-              Show in client dashboard
-            </label>
-          )}
           <Link to={`/admin/clients/${clientId}/analytics-reports/new`}>
             <Button className="flex items-center gap-1.5">
               <Plus className="h-4 w-4" />

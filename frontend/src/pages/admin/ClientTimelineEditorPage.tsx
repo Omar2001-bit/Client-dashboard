@@ -1,35 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
-import { ArrowLeft, CopyPlus, ExternalLink, GripVertical, Plus, Save, Send, Trash2, Unlink } from "lucide-react";
+import { ArrowLeft, ExternalLink, Save, Send, Unlink } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
-import { TimelineViewer } from "@/components/timeline/TimelineViewer";
 import { useClientTimeline } from "@/hooks/useClientTimeline";
-import type { ClientDoc, ClientTimelineConfig, ClickUpFolder, ClickUpTask, ClickUpWorkspace, TimelinePhase } from "@/types";
-import { sortPhases, toDateKey } from "@/lib/timeline";
-
-const PHASE_COLORS = ["#6ae499", "#7cb7ff", "#fbbf24", "#f97316", "#f472b6", "#a78bfa", "#d94444"];
-
-function createBlankPhase(client: ClientDoc | null, index: number): TimelinePhase {
-  const start = toDateKey(client?.contractStartDate?.toDate?.() ?? new Date());
-  const end = client?.contractEndDate?.toDate?.() ? toDateKey(client.contractEndDate.toDate()) : start;
-  return {
-    id: `phase_${Date.now()}_${index}`,
-    title: `Phase ${index + 1}`,
-    color: PHASE_COLORS[index % PHASE_COLORS.length],
-    startDate: start,
-    endDate: end,
-    description: "",
-    deliverables: [],
-  };
-}
+import type { ClientDoc, ClientTimelineConfig, ClickUpFolder, ClickUpWorkspace } from "@/types";
 
 export function ClientTimelineEditorPage({ embedded = false }: { embedded?: boolean }) {
   const { clientId } = useParams<{ clientId: string }>();
@@ -40,7 +20,6 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [clickupLoading, setClickupLoading] = useState(false);
   const [clickupMessage, setClickupMessage] = useState<string>("");
   const [clickupConfigured, setClickupConfigured] = useState<boolean | null>(null);
@@ -84,90 +63,20 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
     if (loaded && !ready) {
       setLocal(timeline);
       setReady(true);
-      const first = timeline.phases?.[0]?.id ?? null;
-      setSelectedPhaseId(first);
       if (timeline.clickup?.workspaceId) setSelectedWorkspaceId(timeline.clickup.workspaceId);
       if (timeline.clickup?.folderId) setSelectedFolderId(timeline.clickup.folderId);
     }
   }, [loaded, ready, timeline]);
 
-  const sortedPhases = useMemo(() => sortPhases(local.phases ?? []), [local.phases]);
-  const selectedPhase = sortedPhases.find((phase) => phase.id === selectedPhaseId) ?? sortedPhases[0] ?? null;
   const clickup = local.clickup ?? {};
   const clickupTasks = clickup.tasks ?? [];
-  const phaseTaskMap = useMemo(() => {
-    const map: Record<string, ClickUpTask[]> = {};
-    clickupTasks.forEach((task) => {
-      const phaseId = clickup.taskAssignments?.[task.id];
-      if (!phaseId) return;
-      if (!map[phaseId]) map[phaseId] = [];
-      map[phaseId].push(task);
-    });
-    return map;
-  }, [clickup.taskAssignments, clickupTasks]);
   const hasClickup = Boolean(clickup.connected && clickup.workspaceId);
-
-  const updatePhase = (id: string, patch: Partial<TimelinePhase>) => {
-    setLocal((prev) => ({
-      ...prev,
-      phases: (prev.phases ?? []).map((phase) => (phase.id !== id ? phase : { ...phase, ...patch })),
-    }));
-  };
-
-  const setTaskAssignment = (taskId: string, phaseId: string) => {
-    setLocal((prev) => {
-      const current = prev.clickup?.taskAssignments ?? {};
-      const nextAssignments = { ...current };
-      if (phaseId) nextAssignments[taskId] = phaseId;
-      else delete nextAssignments[taskId];
-      return {
-        ...prev,
-        clickup: {
-          ...(prev.clickup ?? {}),
-          taskAssignments: nextAssignments,
-        },
-      };
-    });
-  };
-
-  const addPhase = () => {
-    const next = createBlankPhase(client, (local.phases ?? []).length);
-    setSelectedPhaseId(next.id);
-    setLocal((prev) => ({
-      ...prev,
-      phases: [...(prev.phases ?? []), next],
-    }));
-  };
-
-  const duplicatePhase = (phase: TimelinePhase) => {
-    const copy: TimelinePhase = {
-      ...phase,
-      id: `phase_${Date.now()}`,
-      title: `${phase.title} Copy`,
-    };
-    setSelectedPhaseId(copy.id);
-    setLocal((prev) => ({
-      ...prev,
-      phases: [...(prev.phases ?? []), copy],
-    }));
-  };
-
-  const removePhase = (id: string) => {
-    setLocal((prev) => ({
-      ...prev,
-      phases: (prev.phases ?? []).filter((phase) => phase.id !== id),
-    }));
-    setSelectedPhaseId((current) => (current === id ? null : current));
-  };
 
   const handleSave = async () => {
     if (!clientId) return;
     setSaving(true);
     try {
-      await saveTimeline({
-        ...local,
-        phases: sortPhases(local.phases ?? []),
-      });
+      await saveTimeline(local);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -216,7 +125,7 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
       await readJsonOrThrow(resp, "Clearing ClickUp scope failed.");
       setLocal((prev) => ({
         ...prev,
-        clickup: { connected: false, workspaceId: null, workspaceName: "", folderId: null, folderName: "", tasks: [], taskAssignments: {} },
+        clickup: { connected: false, workspaceId: null, workspaceName: "", folderId: null, folderName: "", tasks: [] },
       }));
       setSelectedWorkspaceId("");
       setSelectedFolderId("");
@@ -267,124 +176,13 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold text-ink">Phase Builder</h2>
-              <p className="mt-1 text-xs text-ink/45">Admin-controlled settings for every phase block.</p>
-            </div>
-            <Button variant="secondary" size="sm" onClick={addPhase} className="flex items-center gap-1.5">
-              <Plus className="h-4 w-4" />
-              Create Phase
-            </Button>
-          </CardHeader>
-          <CardBody className="space-y-4">
-            {(sortedPhases.length === 0) && (
-              <p className="text-sm text-ink/45">No phases configured yet.</p>
-            )}
-            {sortedPhases.map((phase, index) => (
-              <div key={phase.id} className={`rounded-2xl border p-4 ${selectedPhase?.id === phase.id ? "border-brand-300 bg-brand-50/30" : "border-ink/10 bg-white"}`}>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 text-ink/30" />
-                    <p className="font-medium text-ink">Phase {index + 1}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => duplicatePhase(phase)} className="flex items-center gap-1.5">
-                      <CopyPlus className="h-4 w-4" />
-                      Duplicate
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => removePhase(phase.id)} className="flex items-center gap-1.5 text-red-600 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    label="Phase title"
-                    value={phase.title}
-                    onChange={(e) => updatePhase(phase.id, { title: e.target.value })}
-                    placeholder="Onboarding"
-                  />
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium text-ink/80">Color</label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={phase.color}
-                        onChange={(e) => updatePhase(phase.id, { color: e.target.value })}
-                        className="h-11 w-14 rounded-xl border border-ink/10 bg-white p-1"
-                      />
-                      <Input
-                        value={phase.color}
-                        onChange={(e) => updatePhase(phase.id, { color: e.target.value })}
-                        placeholder="#6ae499"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Input
-                    label="Start date"
-                    type="date"
-                    value={phase.startDate}
-                    min={client.contractStartDate.toDate().toISOString().slice(0, 10)}
-                    max={phase.endDate}
-                    onChange={(e) => updatePhase(phase.id, { startDate: e.target.value })}
-                  />
-                  <Input
-                    label="End date"
-                    type="date"
-                    value={phase.endDate}
-                    min={phase.startDate}
-                    max={client.contractEndDate ? client.contractEndDate.toDate().toISOString().slice(0, 10) : undefined}
-                    onChange={(e) => updatePhase(phase.id, { endDate: e.target.value })}
-                  />
-                </div>
-
-                <div className="mt-4">
-                  <Textarea
-                    label="Description"
-                    value={phase.description ?? ""}
-                    onChange={(e) => updatePhase(phase.id, { description: e.target.value })}
-                    rows={3}
-                    placeholder="Explain what happens during this phase and the expected outcomes."
-                    className="resize-none"
-                  />
-                </div>
-
-                <div className="mt-4">
-                  <Textarea
-                    label="Deliverables"
-                    value={(phase.deliverables ?? []).join("\n")}
-                    onChange={(e) =>
-                      updatePhase(phase.id, {
-                        deliverables: e.target.value
-                          .split("\n")
-                          .map((item) => item.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                    rows={4}
-                    placeholder={"One deliverable per line\nExample: Kickoff plan\nExample: Creative brief"}
-                    className="resize-none"
-                  />
-                </div>
-              </div>
-            ))}
-          </CardBody>
-        </Card>
-
+      <div className="max-w-3xl">
         <Card>
           <CardHeader className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-ink">ClickUp Tasks</h2>
               <p className="mt-1 text-xs text-ink/45">
-                Pick a workspace and folder (usually named after the client), sync tasks, then assign them to phases.
+                Pick a workspace and folder (usually named after the client), then sync tasks — the client sees them as an auto-generated Gantt chart.
               </p>
             </div>
             {hasClickup && (
@@ -476,7 +274,7 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                   {clickupTasks.length > 0 ? (
                     <div className="divide-y divide-ink/5">
                       {clickupTasks.map((task) => (
-                        <div key={task.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1.1fr_0.9fr]">
+                        <div key={task.id} className="flex items-center justify-between gap-3 px-4 py-3">
                           <div className="min-w-0">
                             <p className="font-medium text-ink truncate">{task.name}</p>
                             <p className="text-xs text-ink/45">
@@ -485,25 +283,11 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
                               {task.listName ? ` - ${task.listName}` : ""}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={clickup.taskAssignments?.[task.id] ?? ""}
-                              onChange={(e) => setTaskAssignment(task.id, e.target.value)}
-                              className="w-full"
-                            >
-                              <option value="">Unassigned</option>
-                              {sortedPhases.map((phase) => (
-                                <option key={phase.id} value={phase.id}>
-                                  {phase.title}
-                                </option>
-                              ))}
-                            </Select>
-                            {task.url && (
-                              <a href={task.url} target="_blank" rel="noreferrer" className="text-ink/40 hover:text-ink">
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            )}
-                          </div>
+                          {task.url && (
+                            <a href={task.url} target="_blank" rel="noreferrer" className="shrink-0 text-ink/40 hover:text-ink">
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -517,29 +301,6 @@ export function ClientTimelineEditorPage({ embedded = false }: { embedded?: bool
             )}
           </CardBody>
         </Card>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <div>
-              <p className="text-sm font-semibold text-ink">Live client preview</p>
-              <p className="text-xs text-ink/45">This uses the exact client-side layout and updates as you edit.</p>
-            </div>
-            <Button variant="secondary" size="sm" onClick={() => setSelectedPhaseId(sortedPhases[0]?.id ?? null)}>
-              Focus first phase
-            </Button>
-          </div>
-          <TimelineViewer
-            clientName={client.name}
-            contractStartDate={toDateKey(client.contractStartDate.toDate())}
-            contractEndDate={client.contractEndDate ? toDateKey(client.contractEndDate.toDate()) : undefined}
-            phases={sortedPhases}
-            selectedPhaseId={selectedPhase?.id ?? null}
-            onSelectPhase={setSelectedPhaseId}
-            phaseTasks={phaseTaskMap}
-            emptyTitle="No phases yet."
-            emptySubtitle="Create phases to build the engagement timeline."
-          />
-        </div>
       </div>
     </div>
   );

@@ -68,8 +68,9 @@ export function AuditFindingDetail({
   // Fix/verify/docs/routing are hidden from clients by default (they're written with an
   // admin audience in mind) but not a security boundary — Firestore already lets the client
   // role read the full document. A client can reveal them for themselves via the checkbox
-  // below. "My notes" and the action buttons stay admin-only regardless — those are admin
-  // workflow tools, not attributes of the issue itself.
+  // below. The note is different: it's meant to reach the client (see AuditFindingDoc.note's
+  // "admin-write-only, client read-only" contract), just never editable by them — rendered
+  // separately below regardless of showFullDetails. The action buttons stay admin-only.
   const showContentFields = mode === "admin" || (mode === "client" && showFullDetails);
 
   const handleNoteChange = (value: string) => {
@@ -79,7 +80,7 @@ export function AuditFindingDetail({
   };
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto h-full">
+    <div className="p-6 space-y-6 overflow-y-auto h-full min-h-0">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[11px] uppercase tracking-wide text-ink/40">
@@ -180,6 +181,13 @@ export function AuditFindingDetail({
         </>
       )}
 
+      {mode === "client" && finding.note?.trim() && (
+        <div>
+          <h3 className="text-sm font-semibold text-ink">Note from your account team</h3>
+          <p className="mt-1 text-sm text-ink/70 whitespace-pre-line">{finding.note}</p>
+        </div>
+      )}
+
       {mode === "admin" && (
         <>
           <div>
@@ -188,7 +196,7 @@ export function AuditFindingDetail({
               value={noteDraft}
               onChange={(e) => handleNoteChange(e.target.value)}
               rows={3}
-              placeholder="Add a note visible to other admins…"
+              placeholder="Add a note — your client will see this…"
               className="mt-1"
             />
           </div>

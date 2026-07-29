@@ -35,8 +35,6 @@ export type ActivityEventType =
   | "chat_opened"
   | "chat_closed"
   | "chat_message_sent"
-  // Timeline
-  | "timeline_phase_selected"
   // Attention
   | "tab_hidden"
   | "tab_visible"
@@ -52,7 +50,21 @@ export type ActivityEventType =
   | "tutorial_step_skipped"
   | "tutorial_skipped"
   | "tutorial_completed"
-  | "tutorial_reopened";
+  | "tutorial_reopened"
+  // Project Tasks / Timeline Gantt (ClickUp)
+  | "clickup_task_view"
+  | "clickup_group_toggle"
+  // Page Speed
+  | "pagespeed_run_started"
+  | "pagespeed_run_stopped"
+  | "pagespeed_strategy_change"
+  | "pagespeed_compare_click"
+  | "pagespeed_compare_run"
+  // Analytics Reports
+  | "analytics_report_view"
+  // GA4
+  | "ga4_view_selected"
+  | "ga4_refresh_click";
 
 export interface ActivityEvent {
   type: ActivityEventType;

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc, onSnapshot, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
+import { fetchWithColdStartRetry } from "@/lib/apiClient";
+import { track } from "@/lib/activityTracker";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
@@ -263,7 +265,7 @@ export function PageSpeedPage() {
     setError("");
     setSitemapUrls([]);
     try {
-      const resp = await fetch(`${API_BASE}/api/pagespeed/sitemap?url=${encodeURIComponent(url)}`);
+      const resp = await fetchWithColdStartRetry(`${API_BASE}/api/pagespeed/sitemap?url=${encodeURIComponent(url)}`);
       if (!resp.ok) throw new Error("Failed to fetch sitemap");
       const data = await resp.json();
       if (data.urls.length === 0) {
@@ -296,6 +298,7 @@ export function PageSpeedPage() {
 
   const runReport = async () => {
     if (sitemapUrls.length === 0 || !clientId || loading) return;
+    track({ type: "pagespeed_run_started", metadata: { strategy, pageCount: sitemapUrls.length } });
     // Activate the guard BEFORE setting loading — this prevents stale
     // Firestore reads (from the polling fallback or onSnapshot) from
     // resetting loading=false before the server has written the new run.
@@ -309,7 +312,7 @@ export function PageSpeedPage() {
     setAuditScoreAverages({});
 
     try {
-      const resp = await fetch(`${API_BASE}/api/pagespeed/run`, {
+      const resp = await fetchWithColdStartRetry(`${API_BASE}/api/pagespeed/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -332,6 +335,7 @@ export function PageSpeedPage() {
 
   const stopReport = async () => {
     if (!clientId || !loading || stopping) return;
+    track({ type: "pagespeed_run_stopped", metadata: { strategy } });
     setStopping(true);
     setError("");
     try {
@@ -479,14 +483,14 @@ export function PageSpeedPage() {
           {/* Strategy Toggle */}
           <div className="inline-flex overflow-hidden rounded-lg border border-ink/10 bg-white text-sm font-medium shadow-sm">
             <button
-              onClick={() => setStrategy("mobile")}
+              onClick={() => { setStrategy("mobile"); track({ type: "pagespeed_strategy_change", metadata: { strategy: "mobile" } }); }}
               className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${strategy === "mobile" ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
             >
               <Smartphone className="h-4 w-4" />
               Mobile
             </button>
             <button
-              onClick={() => setStrategy("desktop")}
+              onClick={() => { setStrategy("desktop"); track({ type: "pagespeed_strategy_change", metadata: { strategy: "desktop" } }); }}
               className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${strategy === "desktop" ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
             >
               <Monitor className="h-4 w-4" />
@@ -495,7 +499,7 @@ export function PageSpeedPage() {
           </div>
           <Button
             variant="secondary"
-            onClick={() => navigate("/dashboard/page-speed/compare")}
+            onClick={() => { track({ type: "pagespeed_compare_click", metadata: { pastRunsCount: pastRuns.length } }); navigate("/dashboard/page-speed/compare"); }}
             disabled={pastRuns.length < 2}
             className="flex items-center gap-2"
           >
@@ -898,7 +902,7 @@ export function PageSpeedPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => navigate("/dashboard/page-speed/compare")}
+                onClick={() => { track({ type: "pagespeed_compare_click", metadata: { pastRunsCount: pastRuns.length } }); navigate("/dashboard/page-speed/compare"); }}
                 className="flex items-center gap-1.5"
               >
                 <BarChart3 className="h-3.5 w-3.5" />

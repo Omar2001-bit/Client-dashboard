@@ -10,7 +10,7 @@ const EVENT_COLORS: Record<string, string> = {
   experiment_visibility_toggle: "#ea580c", experiment_detail_hide_toggle: "#ea580c",
   variation_preview_click: "#2563eb", support_message_sent: "#16a34a",
   chat_opened: "#22c55e", chat_closed: "#94a3b8", chat_message_sent: "#16a34a",
-  timeline_phase_selected: "#2563eb", meeting_type_selected: "#059669",
+  meeting_type_selected: "#059669",
   password_changed: "#475569", ab_testing_view_selected: "#4f46e5",
   tab_hidden: "#94a3b8", tab_visible: "#059669",
   scroll_depth: "#64748b", chart_date_hover: "#0d9488", back_navigation: "#64748b",

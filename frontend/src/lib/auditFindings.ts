@@ -160,6 +160,37 @@ export async function restoreFinding(clientId: string, findingId: string, uid: s
   );
 }
 
+/** Soft-deletes many findings at once (same fields as deleteFinding), via a chunked
+ *  writeBatch mirroring bulkCreateFindings' BATCH_LIMIT/flushIfNeeded pattern. */
+export async function bulkDeleteFindings(clientId: string, findingIds: string[], uid: string): Promise<void> {
+  const BATCH_LIMIT = 450;
+  let batch = writeBatch(db);
+  let batchOps = 0;
+  const flushIfNeeded = async () => {
+    if (batchOps >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = writeBatch(db);
+      batchOps = 0;
+    }
+  };
+
+  for (const findingId of findingIds) {
+    batch.set(
+      findingRef(clientId, findingId),
+      {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+        progressUpdatedAt: serverTimestamp(),
+        progressUpdatedBy: uid,
+      },
+      { merge: true }
+    );
+    batchOps++;
+    await flushIfNeeded();
+  }
+  if (batchOps > 0) await batch.commit();
+}
+
 export function newFindingId(): string {
   return `manual-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -282,6 +313,90 @@ export async function bulkCreateFindings(clientId: string, rows: AuditFindingFor
 
   if (ids.length > 0) await enableAuditTracking(clientId);
   return ids;
+}
+
+// CSV rows carry no stable identity column (no id/row/issueId), so re-imports can't key off
+// anything but content. This composite is the closest thing to a natural key: as long as a
+// finding's tool/tab/issue wording stays the same between audit re-runs, it recognizes "this
+// CSV row is the same finding as that existing doc" for "update" mode. A reworded issue string
+// won't match and will be treated as new — a known, accepted limitation of not having a real id.
+function findingMatchKey(f: { tool: string; sourceTab: string; issue: string }): string {
+  return `${f.tool}||${f.sourceTab.trim().toLowerCase()}||${f.issue.trim().toLowerCase()}`;
+}
+
+export type AuditImportMode = "add" | "replace" | "update";
+
+export interface AuditImportResult {
+  created: number;
+  updated: number;
+  replaced: number; // count of prior findings wiped, only nonzero in "replace" mode
+}
+
+/** Mode-aware CSV import, sitting in front of bulkCreateFindings:
+ *  - "add": today's plain additive behavior.
+ *  - "replace": soft-deletes every existing (active) finding first, then imports the CSV
+ *    as the new full set — progress is intentionally reset, this is the explicit "start over".
+ *  - "update": matches each row to an existing finding via findingMatchKey and refreshes its
+ *    content in place (preserving progress/note/deleted, same shape as updateFindingContent);
+ *    unmatched rows are created new; existing findings absent from the CSV are left untouched. */
+export async function bulkImportFindings(
+  clientId: string,
+  rows: AuditFindingFormInput[],
+  uid: string,
+  mode: AuditImportMode
+): Promise<AuditImportResult> {
+  if (mode === "add") {
+    const ids = await bulkCreateFindings(clientId, rows, uid);
+    return { created: ids.length, updated: 0, replaced: 0 };
+  }
+
+  if (mode === "replace") {
+    const existingSnap = await getDocs(collection(db, "clients", clientId, "auditFindings"));
+    const activeIds = existingSnap.docs.filter((d) => !d.data().deleted).map((d) => d.id);
+    if (activeIds.length > 0) await bulkDeleteFindings(clientId, activeIds, uid);
+    const ids = await bulkCreateFindings(clientId, rows, uid);
+    return { created: ids.length, updated: 0, replaced: activeIds.length };
+  }
+
+  // mode === "update"
+  const existingSnap = await getDocs(collection(db, "clients", clientId, "auditFindings"));
+  const byKey = new Map(
+    existingSnap.docs
+      .map((d) => d.data() as AuditFindingDoc)
+      .filter((f) => !f.deleted)
+      .map((f) => [findingMatchKey(f), f])
+  );
+
+  const toCreate: AuditFindingFormInput[] = [];
+  let updated = 0;
+  const BATCH_LIMIT = 450;
+  let batch = writeBatch(db);
+  let batchOps = 0;
+  const flushIfNeeded = async () => {
+    if (batchOps >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = writeBatch(db);
+      batchOps = 0;
+    }
+  };
+
+  for (const row of rows) {
+    const match = byKey.get(findingMatchKey(row));
+    if (match) {
+      // Same content-only merge shape as updateFindingContent — never touches
+      // progressStatus/note/deleted/progressUpdatedAt/progressUpdatedBy.
+      batch.set(findingRef(clientId, match.id), { ...row, sourceTab: row.sourceTab.trim() || "Manual" }, { merge: true });
+      updated++;
+      batchOps++;
+      await flushIfNeeded();
+    } else {
+      toCreate.push(row);
+    }
+  }
+  if (batchOps > 0) await batch.commit();
+
+  const createdIds = toCreate.length > 0 ? await bulkCreateFindings(clientId, toCreate, uid) : [];
+  return { created: createdIds.length, updated, replaced: 0 };
 }
 
 /** Content-only update — deliberately never touches progressStatus/note/deleted/

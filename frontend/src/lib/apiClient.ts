@@ -21,3 +21,23 @@ export async function readJsonOrThrow<T>(resp: Response, fallbackMessage: string
   }
   return resp.json();
 }
+
+/** Retries a fetch on network-level failure only (e.g. "Failed to fetch" while a Render
+ *  free-tier instance is cold-starting) — never retries on a real HTTP error response,
+ *  since that means the server answered and something else is actually wrong. */
+export async function fetchWithColdStartRetry(
+  url: string,
+  init?: RequestInit,
+  delaysMs: number[] = [2000, 4000, 6000, 8000, 10000, 12000]
+): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= delaysMs.length; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < delaysMs.length) await new Promise((r) => setTimeout(r, delaysMs[attempt]));
+    }
+  }
+  throw lastErr;
+}

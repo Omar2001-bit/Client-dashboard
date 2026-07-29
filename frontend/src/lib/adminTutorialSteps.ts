@@ -95,9 +95,9 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
   // ── Client detail — intro ──────────────────────────────────────────────────
   {
     id: "client_detail_intro",
-    title: "Inside a Client — 5 Tabs",
+    title: "Inside a Client — 6 Tabs",
     description:
-      "Opening a client takes you to a 5-tab page. We'll walk through each tab now. Watch the highlighted areas as we go.",
+      "Opening a client takes you to a 6-tab page. We'll walk through each tab now. Watch the highlighted areas as we go.",
     target: null,
     route: "/admin/clients/{clientId}",
     position: "center",
@@ -106,7 +106,7 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     id: "client_detail_tabs",
     title: "Tab Navigation",
     description:
-      "These five tabs separate all client management work. Overview handles details and credentials, Convert Data Pulls handles syncing, Dashboard Settings controls what the client sees, Timeline Builder is the project roadmap editor, and Audit Findings tracks fixes from the client's tracking & analytics audit.",
+      "These six tabs separate all client management work. Overview handles details and credentials, Convert Data Pulls handles syncing, Dashboard Settings controls what the client sees, Timeline Builder is the project roadmap editor, Audit Findings tracks fixes from the client's tracking & analytics audit, and Reports is the custom GA4 report builder.",
     target: "[data-tutorial='admin-client-tabs']",
     route: "/admin/clients/{clientId}",
     position: "bottom",
@@ -118,7 +118,7 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     id: "client_overview_content",
     title: "Overview Tab — Client Details",
     description:
-      "This is where you manage the core account information: company name, contact, engagement dates, Convert.com credentials, status (Active/Inactive), and password management. Click Save Changes after editing.",
+      "This is where you manage the core account information: company name, contact, engagement dates, Convert.com credentials, and status (Active/Inactive). Click Save Changes after editing.",
     target: "[data-tutorial='admin-client-overview']",
     route: "/admin/clients/{clientId}?tab=overview",
     position: "top",
@@ -133,6 +133,24 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     route: "/admin/clients/{clientId}?tab=overview",
     position: "bottom",
     execAdminOnly: true,
+  },
+  {
+    id: "client_ga4_analytics",
+    title: "GA4 Property",
+    description:
+      "Link this client's GA4 property here to power their GA4 Data View — save changes above to apply it.",
+    target: "[data-tutorial='admin-client-ga4']",
+    route: "/admin/clients/{clientId}?tab=overview",
+    position: "bottom",
+  },
+  {
+    id: "client_password_management",
+    title: "Password Management",
+    description:
+      "Two ways to help a client into their account: send a reset email with a link they use themselves, or set a password directly — generate one, copy it, and share it with the client yourself.",
+    target: "[data-tutorial='admin-client-password']",
+    route: "/admin/clients/{clientId}?tab=overview",
+    position: "top",
   },
 
   // ── Convert tab ────────────────────────────────────────────────────────────
@@ -162,7 +180,7 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
     id: "client_timeline_content",
     title: "Timeline Builder Tab",
     description:
-      "Build the project roadmap the client sees on their Timeline page. Add phases with names, colors, start and end dates, and descriptions. Link phases to ClickUp tasks so the client can see real-time task status. Connect ClickUp once via the Settings page to enable linking.",
+      "Connect this client to a ClickUp workspace and folder, then sync — their Timeline page automatically renders a Gantt chart from the synced tasks. Connect ClickUp once via the Settings page to enable syncing.",
     target: "[data-tutorial='admin-client-timeline']",
     route: "/admin/clients/{clientId}?tab=timeline",
     position: "top",
@@ -176,6 +194,17 @@ export const ADMIN_TUTORIAL_STEPS: AdminTutorialStep[] = [
       "Manage this client's tracking & analytics audit findings here. Create or edit findings individually, or bulk-upload via CSV for large imports. Sort by severity, tool, or progress, mark each finding fixed / not fixed / reset, and add private admin-only notes the client never sees. Findings can be soft-deleted and restored, and an admin-only filter reveals correct/checklist rows normally hidden from the client.",
     target: "[data-tutorial='admin-client-audit']",
     route: "/admin/clients/{clientId}?tab=audit",
+    position: "top",
+  },
+
+  // ── Reports tab ────────────────────────────────────────────────────────────
+  {
+    id: "client_reports_content",
+    title: "Reports Tab",
+    description:
+      "Build custom GA4 reports for this client — arbitrary metric/dimension breakdowns, comparison periods, funnels, and rule-based insights. Every report you build here is automatically visible on the client's own Analytics Reports page — there's no separate publish step.",
+    target: "[data-tutorial='admin-client-reports']",
+    route: "/admin/clients/{clientId}?tab=reports",
     position: "top",
   },
 

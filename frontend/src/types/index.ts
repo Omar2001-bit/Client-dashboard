@@ -225,7 +225,6 @@ export interface DashboardSettings {
   experimentOverrides?: Record<string, ExperimentOverride>;
   manualExperiments?: ManualExperiment[];
   auditTrackingEnabled?: boolean;
-  ga4ReportsEnabled?: boolean;
 }
 
 export interface ClientPreferences {
@@ -308,16 +307,6 @@ export interface Ga4ReportDoc {
   updatedAt: Timestamp;
 }
 
-export interface TimelinePhase {
-  id: string;
-  title: string;
-  color: string;
-  startDate: string;
-  endDate: string;
-  description?: string;
-  deliverables?: string[];
-}
-
 export interface ClickUpWorkspace {
   id: string;
   name: string;
@@ -363,7 +352,6 @@ export interface ClickUpIntegration {
   folderName?: string | null;
   tasks?: ClickUpTask[];
   lists?: ClickUpList[];
-  taskAssignments?: Record<string, string>;
   lastSyncedAt?: string;
 }
 
@@ -379,7 +367,6 @@ export interface ClickUpAccessConfig {
 export interface ClientTimelineConfig {
   title?: string;
   subtitle?: string;
-  phases?: TimelinePhase[];
   clickup?: ClickUpIntegration;
 }
 

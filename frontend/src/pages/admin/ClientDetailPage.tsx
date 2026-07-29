@@ -9,16 +9,18 @@ import { Alert } from "@/components/ui/Alert";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tabs } from "@/components/ui/Tabs";
-import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User, ListChecks } from "lucide-react";
-import { syncFromConvert, pullNewFromConvert, type SyncProgress } from "@/lib/convertSync";
+import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User, ListChecks, LineChart } from "lucide-react";
+import { syncFromConvert, pullNewFromConvert } from "@/lib/convertSync";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ClientDoc, GA4Property } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { ClientDashboardSettingsPage } from "@/pages/admin/ClientDashboardSettingsPage";
 import { ClientTimelineEditorPage } from "@/pages/admin/ClientTimelineEditorPage";
 import { AdminAuditFindingsPage } from "@/pages/admin/AdminAuditFindingsPage";
+import { AdminAnalyticsReportsPage } from "@/pages/admin/AdminAnalyticsReportsPage";
 import { API_BASE, fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 import { SyncProgressBlock } from "@/components/clients/SyncProgressBlock";
+import { useConvertSyncState } from "@/store/convertSyncStore";
 
 export function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -30,19 +32,16 @@ export function ClientDetailPage() {
   const [newConvertKeySecret, setNewConvertKeySecret] = useState("");
   const [ga4Properties, setGa4Properties] = useState<GA4Property[]>([]);
   const [ga4Loading, setGa4Loading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
-  const [pulling, setPulling] = useState(false);
-  const [pullProgress, setPullProgress] = useState<SyncProgress | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "warning" | "error" } | null>(null);
+  const { syncing, syncProgress, pulling, pullProgress, setSyncState, setPullState } = useConvertSyncState(clientId);
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<"overview" | "convert" | "settings" | "timeline" | "audit">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "convert" | "settings" | "timeline" | "audit" | "reports">("overview");
 
   // Allow the tutorial to switch tabs via ?tab= query param
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && ["overview", "convert", "settings", "timeline", "audit"].includes(tab)) {
-      setActiveTab(tab as "overview" | "convert" | "settings" | "timeline" | "audit");
+    if (tab && ["overview", "convert", "settings", "timeline", "audit", "reports"].includes(tab)) {
+      setActiveTab(tab as "overview" | "convert" | "settings" | "timeline" | "audit" | "reports");
     }
   }, [searchParams]);
   const [newPassword, setNewPassword] = useState("");
@@ -69,7 +68,7 @@ export function ClientDetailPage() {
     e.preventDefault();
     if (!client) return;
     if (client.contractEndDate && client.contractEndDate.toMillis() < client.contractStartDate.toMillis()) {
-      setMessage("Engagement end date must be after the start date.");
+      setMessage({ text: "Engagement end date must be after the start date.", type: "error" });
       return;
     }
     setSaving(true);
@@ -91,9 +90,9 @@ export function ClientDetailPage() {
         ...(client.ga4PropertyId !== undefined ? { ga4PropertyId: client.ga4PropertyId } : {}),
         updatedAt: Timestamp.now(),
       });
-      setMessage("Changes saved.");
+      setMessage({ text: "Changes saved.", type: "success" });
     } catch {
-      setMessage("Failed to save.");
+      setMessage({ text: "Failed to save.", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -101,36 +100,42 @@ export function ClientDetailPage() {
 
   const handleSync = async () => {
     if (!clientId || syncing) return;
-    setSyncing(true);
-    setMessage("");
-    setSyncProgress({ phase: "listing", fetched: 0, total: 0 });
+    setSyncState({ syncing: true, syncProgress: { phase: "listing", fetched: 0, total: 0 } });
+    setMessage(null);
     try {
-      const result = await syncFromConvert(clientId, setSyncProgress);
-      setMessage(`Sync complete — ${result.experimentCount} experiments saved to Firestore.`);
+      const result = await syncFromConvert(clientId, (p) => setSyncState({ syncProgress: p }));
+      setMessage(
+        result.failedCount > 0
+          ? { text: `Sync complete — ${result.experimentCount} experiments saved, ${result.failedCount} had incomplete report data.`, type: "warning" }
+          : { text: `Sync complete — ${result.experimentCount} experiments saved to Firestore.`, type: "success" }
+      );
       // Invalidate cached dashboard data so it reloads from Firestore
       queryClient.invalidateQueries({ queryKey: ["dashboardData", clientId] });
     } catch (err) {
-      setMessage(`Sync failed: ${(err as Error).message}`);
-      setSyncProgress({ phase: "error", fetched: 0, total: 0, message: (err as Error).message });
+      setMessage({ text: `Sync failed: ${(err as Error).message}`, type: "error" });
+      setSyncState({ syncProgress: { phase: "error", fetched: 0, total: 0, message: (err as Error).message } });
     } finally {
-      setSyncing(false);
+      setSyncState({ syncing: false });
     }
   };
 
   const handlePull = async () => {
     if (!clientId || pulling) return;
-    setPulling(true);
-    setMessage("");
-    setPullProgress({ phase: "listing", fetched: 0, total: 0 });
+    setPullState({ pulling: true, pullProgress: { phase: "listing", fetched: 0, total: 0 } });
+    setMessage(null);
     try {
-      const result = await pullNewFromConvert(clientId, setPullProgress);
-      setMessage(`Pull complete — ${result.newCount} new, ${result.updatedCount} updated.`);
+      const result = await pullNewFromConvert(clientId, (p) => setPullState({ pullProgress: p }));
+      setMessage(
+        result.failedCount > 0
+          ? { text: `Pull complete — ${result.newCount} new, ${result.updatedCount} updated, ${result.failedCount} had incomplete report data.`, type: "warning" }
+          : { text: `Pull complete — ${result.newCount} new, ${result.updatedCount} updated.`, type: "success" }
+      );
       queryClient.invalidateQueries({ queryKey: ["dashboardData", clientId] });
     } catch (err) {
-      setMessage(`Pull failed: ${(err as Error).message}`);
-      setPullProgress({ phase: "error", fetched: 0, total: 0, message: (err as Error).message });
+      setMessage({ text: `Pull failed: ${(err as Error).message}`, type: "error" });
+      setPullState({ pullProgress: { phase: "error", fetched: 0, total: 0, message: (err as Error).message } });
     } finally {
-      setPulling(false);
+      setPullState({ pulling: false });
     }
   };
 
@@ -150,9 +155,9 @@ export function ClientDetailPage() {
       await readJsonOrThrow(resp, "Failed to rotate credentials.");
       setNewConvertKeyId("");
       setNewConvertKeySecret("");
-      setMessage("Credentials rotated.");
+      setMessage({ text: "Credentials rotated.", type: "success" });
     } catch (err) {
-      setMessage(`Failed to rotate credentials: ${(err as Error).message}`);
+      setMessage({ text: `Failed to rotate credentials: ${(err as Error).message}`, type: "error" });
     } finally {
       setSaving(false);
     }
@@ -221,6 +226,7 @@ export function ClientDetailPage() {
     { key: "settings" as const,  label: "Dashboard Settings",   icon: Settings2 },
     { key: "timeline" as const,  label: "Timeline Builder",     icon: CalendarDays },
     { key: "audit" as const,     label: "Audit Findings",       icon: ListChecks },
+    { key: "reports" as const,   label: "Reports",              icon: LineChart },
   ];
 
   return (
@@ -261,7 +267,7 @@ export function ClientDetailPage() {
         {/* ── Overview ─────────────────────────────────────────────────────── */}
         {activeTab === "overview" && (
           <div className="p-8 max-w-3xl space-y-6" data-tutorial="admin-client-overview">
-            {message && <Alert tone="info">{message}</Alert>}
+            {message && <Alert tone={message.type === "success" ? "success" : message.type === "warning" ? "warning" : "danger"}>{message.text}</Alert>}
             <form onSubmit={handleSave} className="space-y-6">
               <Card>
                 <CardHeader><h2 className="font-semibold text-ink">Client Details</h2></CardHeader>
@@ -294,42 +300,31 @@ export function ClientDetailPage() {
               </div>
             </form>
 
-            <Card>
-              <CardHeader><h2 className="font-semibold text-ink">GA4 Property</h2></CardHeader>
-              <CardBody className="space-y-3">
-                {ga4Loading ? (
-                  <div className="h-9 animate-pulse rounded-lg bg-ink/10" />
-                ) : ga4Properties.length === 0 ? (
-                  <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
-                ) : (
-                  <Select
-                    value={client.ga4PropertyId ?? ""}
-                    onChange={(e) => setClient((p) => p ? { ...p, ga4PropertyId: e.target.value || undefined } : p)}
-                  >
-                    <option value="">— None (disable GA4 view) —</option>
-                    {ga4Properties.map((p) => (
-                      <option key={p.propertyId} value={p.propertyId}>
-                        {p.displayName} ({p.accountDisplayName} · {p.propertyId})
-                      </option>
-                    ))}
-                  </Select>
-                )}
-                <p className="text-xs text-ink/40">Select the GA4 property to link with this client's GA4 Data View. Save changes above to apply.</p>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHeader><h2 className="font-semibold text-ink">Analytics Reports</h2></CardHeader>
-              <CardBody className="space-y-3">
-                <p className="text-sm text-ink/50">
-                  Build custom GA4 reports for this client — arbitrary metric/dimension breakdowns, comparison
-                  periods, funnels, and rule-based insights. Separate from the GA4 experiment dashboard above.
-                </p>
-                <Link to={`/admin/clients/${clientId}/analytics-reports`}>
-                  <Button variant="secondary" size="sm">Manage reports</Button>
-                </Link>
-              </CardBody>
-            </Card>
+            <div className="space-y-6" data-tutorial="admin-client-ga4">
+              <Card>
+                <CardHeader><h2 className="font-semibold text-ink">GA4 Property</h2></CardHeader>
+                <CardBody className="space-y-3">
+                  {ga4Loading ? (
+                    <div className="h-9 animate-pulse rounded-lg bg-ink/10" />
+                  ) : ga4Properties.length === 0 ? (
+                    <p className="text-sm text-ink/40">No GA4 properties found — server may be offline.</p>
+                  ) : (
+                    <Select
+                      value={client.ga4PropertyId ?? ""}
+                      onChange={(e) => setClient((p) => p ? { ...p, ga4PropertyId: e.target.value || undefined } : p)}
+                    >
+                      <option value="">— None (disable GA4 view) —</option>
+                      {ga4Properties.map((p) => (
+                        <option key={p.propertyId} value={p.propertyId}>
+                          {p.displayName} ({p.accountDisplayName} · {p.propertyId})
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  <p className="text-xs text-ink/40">Select the GA4 property to link with this client's GA4 Data View. Save changes above to apply.</p>
+                </CardBody>
+              </Card>
+            </div>
 
             <Card>
               <CardHeader><h2 className="font-semibold text-ink">Rotate Convert Credentials</h2></CardHeader>
@@ -340,7 +335,7 @@ export function ClientDetailPage() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card data-tutorial="admin-client-password">
               <CardHeader><h2 className="font-semibold text-ink">Password Management</h2></CardHeader>
               <CardBody className="space-y-5">
                 <div className="space-y-2">
@@ -380,7 +375,7 @@ export function ClientDetailPage() {
               <p className="text-sm text-ink/50 mt-1">Pull experiment data from Convert.com into Firestore.</p>
             </div>
 
-            {message && <Alert tone="info">{message}</Alert>}
+            {message && <Alert tone={message.type === "success" ? "success" : message.type === "warning" ? "warning" : "danger"}>{message.text}</Alert>}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Card>
@@ -392,7 +387,7 @@ export function ClientDetailPage() {
                   <Button variant="secondary" onClick={handlePull} loading={pulling} className="flex items-center gap-2 w-full justify-center">
                     <RefreshCw className="h-4 w-4" /> {pulling ? "Pulling…" : "Pull New from Convert"}
                   </Button>
-                  <SyncProgressBlock progress={pulling ? pullProgress : null} label="Incremental pull" />
+                  <SyncProgressBlock progress={pullProgress} label="Incremental pull" />
                 </CardBody>
               </Card>
 
@@ -405,7 +400,7 @@ export function ClientDetailPage() {
                   <Button variant="primary" onClick={handleSync} loading={syncing} className="flex items-center gap-2 w-full justify-center">
                     <RefreshCw className="h-4 w-4" /> {syncing ? "Syncing…" : "Full Refresh from Convert"}
                   </Button>
-                  <SyncProgressBlock progress={syncing ? syncProgress : null} label="Full sync" />
+                  <SyncProgressBlock progress={syncProgress} label="Full sync" />
                 </CardBody>
               </Card>
             </div>
@@ -417,11 +412,13 @@ export function ClientDetailPage() {
           <div data-tutorial="admin-client-settings">
             <div className="flex items-center justify-between px-8 pt-6 pb-2">
               <div />
-              <Link to={`/admin/clients/${clientId}/preview`} target="_blank" rel="noopener noreferrer">
-                <Button variant="secondary" size="sm" className="flex items-center gap-1.5">
-                  <Eye className="h-4 w-4" /> Preview as Client
-                </Button>
-              </Link>
+              {currentRole === "executiveAdmin" && (
+                <Link to={`/admin/clients/${clientId}/preview`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="secondary" size="sm" className="flex items-center gap-1.5">
+                    <Eye className="h-4 w-4" /> Preview as Client
+                  </Button>
+                </Link>
+              )}
             </div>
             <ClientDashboardSettingsPage embedded />
           </div>
@@ -438,6 +435,13 @@ export function ClientDetailPage() {
         {activeTab === "audit" && (
           <div data-tutorial="admin-client-audit">
             <AdminAuditFindingsPage />
+          </div>
+        )}
+
+        {/* ── Reports ──────────────────────────────────────────────────────── */}
+        {activeTab === "reports" && (
+          <div data-tutorial="admin-client-reports">
+            <AdminAnalyticsReportsPage embedded />
           </div>
         )}
 

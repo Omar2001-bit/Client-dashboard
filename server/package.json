@@ -13,7 +13,6 @@
     "fast-xml-parser": "^5.7.2",
     "firebase-admin": "^13.0.0",
     "googleapis": "^171.4.0",
-    "node-cron": "^3.0.0",
-    "nodemailer": "^6.9.0"
+    "node-cron": "^3.0.0"
   }
 }

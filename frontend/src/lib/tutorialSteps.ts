@@ -375,21 +375,32 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "timeline_intro",
     title: "Your Project Timeline",
     description:
-      "The Timeline shows the full roadmap of your engagement with us — broken into phases with start and end dates, deliverables, and linked tasks. This keeps you informed on where we are and what's coming next.",
+      "The Timeline shows a live Gantt chart of your project, auto-generated from our ClickUp task tracker. This keeps you informed on where we are and what's coming next.",
     target: null,
     route: "/dashboard/timeline",
     position: "center",
   },
 
   {
-    id: "timeline_viewer",
-    title: "Engagement Phases",
+    id: "timeline_gantt",
+    title: "Task Gantt Chart",
     description:
-      "Each coloured block represents a phase of your project. Click on any phase to expand it and see its deliverables and any linked tasks. The timeline spans your full contract period so you always have a clear picture of the engagement.",
-    target: "[data-tutorial='timeline-viewer']",
+      "Every task syncs automatically from ClickUp, showing its status and schedule. This updates in real time as our team makes progress, so you always have a clear picture of the engagement.",
+    target: "[data-tutorial='clickup-gantt']",
     route: "/dashboard/timeline",
     position: "bottom",
     padding: 4,
+  },
+
+  // ── Profile ────────────────────────────────────────────────────────────────
+  {
+    id: "profile_password",
+    title: "Your Profile",
+    description:
+      "Change your account password here any time. Use a strong, unique password to keep your dashboard secure.",
+    target: "[data-tutorial='profile-password']",
+    route: "/dashboard/profile",
+    position: "bottom",
   },
 
   // ── Complete ───────────────────────────────────────────────────────────────

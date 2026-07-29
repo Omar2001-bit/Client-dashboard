@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
+import { track } from "@/lib/activityTracker";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
@@ -350,7 +351,7 @@ export function PageSpeedComparePage() {
         </div>
         {!comparing && (
           <Button
-            onClick={() => setComparing(true)}
+            onClick={() => { track({ type: "pagespeed_compare_run", metadata: { runCount: selectedIds.size } }); setComparing(true); }}
             disabled={selectedIds.size < 2}
             className="flex items-center gap-2"
           >

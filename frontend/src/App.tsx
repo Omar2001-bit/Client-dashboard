@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -5,6 +6,7 @@ import { AdminLayout } from "@/components/Layout/AdminLayout";
 import { ClientLayout } from "@/components/Layout/ClientLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuthInit } from "@/hooks/useAuth";
+import { API_BASE } from "@/lib/apiClient";
 import { AdminHomePage } from "@/pages/admin/AdminHomePage";
 import { AdminSupportPage } from "@/pages/admin/AdminSupportPage";
 import { ClientLogsPage } from "@/pages/admin/ClientLogsPage";
@@ -41,6 +43,13 @@ import { DesignSystemPage } from "@/pages/dev/DesignSystemPage";
 function App() {
   useAuthInit();
 
+  // Best-effort wake-up ping for the Render free-tier server, fired once on app load —
+  // starts its cold-start spin-up well before the user reaches a page (e.g. Page Speed)
+  // that actually needs it. Failures are ignored; the real request still retries itself.
+  useEffect(() => {
+    fetch(`${API_BASE}/health`).catch(() => {});
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
     <Router>
@@ -60,7 +69,9 @@ function App() {
             <Route path="clients" element={<ClientListPage />} />
             <Route path="clients/new" element={<CreateClientPage />} />
             <Route path="clients/:clientId" element={<ClientDetailPage />} />
-            <Route path="clients/:clientId/preview" element={<ClientDashboardPage preview />} />
+            <Route element={<ProtectedRoute allowedRole="executiveAdmin" redirectTo="/admin" />}>
+              <Route path="clients/:clientId/preview" element={<ClientDashboardPage preview />} />
+            </Route>
             <Route path="clients/:clientId/analytics-reports" element={<AdminAnalyticsReportsPage />} />
             {/* :reportId also matches literal "new" (its value is just the string "new"), which is what
                 AdminAnalyticsReportBuilderPage checks for — a separate literal "new" route here would win

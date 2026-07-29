@@ -2,7 +2,7 @@ import {
   ArrowLeft, Eye, EyeOff, Search, Calendar, ToggleLeft, BarChart2,
   ArrowUpDown, MessageSquare, Clock, Globe, ExternalLink, ChevronRight,
   RefreshCw, Shield, LayoutDashboard, FlaskConical, Play, SkipForward, X,
-  ListChecks, Filter,
+  ListChecks, Filter, ClipboardList, Gauge, GitCompareArrows, LineChart,
 } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
 import type { ActivityEventType } from "@/lib/activityTracker";
@@ -55,8 +55,6 @@ export const EVENT_CONFIG: Record<ActivityEventType, { label: string; icon: Reac
   chat_opened:                  { label: "Opened chat",            icon: MessageSquare, color: "text-brand-600", bg: "bg-brand-50" },
   chat_closed:                  { label: "Closed chat",            icon: MessageSquare, color: "text-ink/40", bg: "bg-ink/5" },
   chat_message_sent:            { label: "Sent chat message",      icon: MessageSquare, color: "text-green-600", bg: "bg-green-50" },
-  // Timeline
-  timeline_phase_selected:      { label: "Opened timeline phase",  icon: Calendar,      color: "text-blue-600",  bg: "bg-blue-50" },
   // Tab attention
   tab_hidden:                   { label: "Switched away",          icon: EyeOff,        color: "text-ink/40", bg: "bg-ink/5" },
   tab_visible:                  { label: "Came back",              icon: Eye,           color: "text-emerald-600",bg: "bg-emerald-50" },
@@ -73,6 +71,20 @@ export const EVENT_CONFIG: Record<ActivityEventType, { label: string; icon: Reac
   tutorial_skipped:             { label: "Skipped tutorial",       icon: X,             color: "text-red-400",   bg: "bg-red-50" },
   tutorial_completed:           { label: "Completed tutorial",     icon: Play,          color: "text-emerald-600",bg: "bg-emerald-50" },
   tutorial_reopened:            { label: "Re-launched tutorial",   icon: Play,          color: "text-brand-600", bg: "bg-brand-50" },
+  // Project Tasks / Timeline Gantt (ClickUp)
+  clickup_task_view:            { label: "Opened ClickUp task",    icon: ClipboardList, color: "text-purple-600", bg: "bg-purple-50" },
+  clickup_group_toggle:         { label: "Toggled task list",      icon: ChevronRight,  color: "text-ink/50",  bg: "bg-ink/5" },
+  // Page Speed
+  pagespeed_run_started:        { label: "Ran Page Speed report",  icon: Gauge,         color: "text-teal-600",  bg: "bg-teal-50" },
+  pagespeed_run_stopped:        { label: "Stopped Page Speed report", icon: Gauge,      color: "text-ink/50",  bg: "bg-ink/5" },
+  pagespeed_strategy_change:    { label: "Changed device strategy", icon: ToggleLeft,   color: "text-orange-600", bg: "bg-orange-50" },
+  pagespeed_compare_click:      { label: "Opened Compare Runs",    icon: GitCompareArrows, color: "text-indigo-600", bg: "bg-indigo-50" },
+  pagespeed_compare_run:        { label: "Compared Page Speed runs", icon: GitCompareArrows, color: "text-indigo-600", bg: "bg-indigo-50" },
+  // Analytics Reports
+  analytics_report_view:        { label: "Opened analytics report", icon: LineChart,    color: "text-purple-600", bg: "bg-purple-50" },
+  // GA4
+  ga4_view_selected:            { label: "Selected GA4 view",      icon: LayoutDashboard, color: "text-indigo-500", bg: "bg-indigo-50" },
+  ga4_refresh_click:            { label: "Refreshed GA4 data",     icon: RefreshCw,     color: "text-teal-500",  bg: "bg-teal-50" },
 };
 
 export function formatDuration(ms: number): string {
@@ -166,8 +178,6 @@ export function getFullDescription(log: LogEntry): string {
       return m.message
         ? `The client sent a ${m.messageLength ?? "?"}-character message via the floating chat widget: "${String(m.message).slice(0, 400)}${String(m.message).length > 400 ? "…" : ""}"`
         : `The client sent a ${m.messageLength ?? "?"}-character message via the floating chat widget.`;
-    case "timeline_phase_selected":
-      return `The client clicked on the "${m.phaseName ?? m.phaseId}" phase in the project timeline to expand and view its tasks and details.`;
     case "meeting_type_selected":
       return `The client clicked to book a "${m.meetingType}" via Calendly, which opened the booking calendar in a new tab.`;
     case "password_changed":
@@ -207,6 +217,26 @@ export function getFullDescription(log: LogEntry): string {
       return `The client completed the full onboarding tutorial — all ${m.totalSteps} steps finished.`;
     case "tutorial_reopened":
       return `The client re-launched the tutorial from the Docs & Tutorial page.`;
+    case "clickup_task_view":
+      return `The client opened ClickUp task "${m.taskName ?? m.taskId}" from the ${m.source === "timeline_gantt" ? "Timeline Gantt chart" : "Project Tasks list"}.`;
+    case "clickup_group_toggle":
+      return `The client ${m.action === "expand" ? "expanded" : "collapsed"} the "${m.groupName ?? "task"}" list group on the ${m.source === "timeline_gantt" ? "Timeline Gantt chart" : "Project Tasks page"}.`;
+    case "pagespeed_run_started":
+      return `The client clicked "Run Report" to analyze ${m.pageCount ?? "?"} page(s) on ${m.strategy ?? "mobile"} using Google PageSpeed Insights.`;
+    case "pagespeed_run_stopped":
+      return `The client clicked "Stop Report" to cancel the in-progress Page Speed run (${m.strategy ?? "mobile"}).`;
+    case "pagespeed_strategy_change":
+      return `The client switched the Page Speed device strategy to "${m.strategy}".`;
+    case "pagespeed_compare_click":
+      return `The client clicked "Compare Runs" to open the Page Speed comparison view (${m.pastRunsCount ?? "?"} saved runs available).`;
+    case "pagespeed_compare_run":
+      return `The client selected ${m.runCount ?? "?"} Page Speed run(s) and clicked "Compare" to see them side-by-side.`;
+    case "analytics_report_view":
+      return `The client opened the analytics report "${m.reportName ?? m.reportId}" from the Analytics Reports page.`;
+    case "ga4_view_selected":
+      return `The client selected the "${m.view}" option on the GA4 Data View hub page, navigating to that view.`;
+    case "ga4_refresh_click":
+      return `The client clicked the refresh button on the GA4 ${m.page === "experiments" ? "Experiments" : "Dashboard"} page to reload the latest data.`;
     default:
       return `The client performed an action on the ${title} page.`;
   }

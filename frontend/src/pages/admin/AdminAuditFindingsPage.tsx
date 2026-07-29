@@ -5,6 +5,7 @@ import { ListChecks, Plus, Upload } from "lucide-react";
 import { KPICard } from "@/components/ui/KPICard";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { Alert } from "@/components/ui/Alert";
 import { AuditFindingFilters } from "@/components/auditFindings/AuditFindingFilters";
 import { AuditFindingList } from "@/components/auditFindings/AuditFindingList";
 import { AuditFindingDetail } from "@/components/auditFindings/AuditFindingDetail";
@@ -20,7 +21,10 @@ import {
   setFindingNote,
   deleteFinding,
   restoreFinding,
+  bulkDeleteFindings,
   type AuditFindingSortKey,
+  type AuditFindingFilterState,
+  type AuditImportResult,
 } from "@/lib/auditFindings";
 import type { FixProgressStatus } from "@/types";
 
@@ -37,6 +41,8 @@ export function AdminAuditFindingsPage() {
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("findingId");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importMessage, setImportMessage] = useState("");
 
   const visible = useMemo(
     () => findings.filter((f) => !f.deleted || filters.deletedView !== "active"),
@@ -83,6 +89,59 @@ export function AdminAuditFindingsPage() {
     invalidate();
   };
 
+  const handleFiltersChange = (next: AuditFindingFilterState) => {
+    setFilters(next);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectPage = (ids: string[], checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteOne = async (id: string) => {
+    if (!clientId || !uid) return;
+    await deleteFinding(clientId, id, uid);
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    invalidate();
+  };
+
+  const handleBulkDelete = async () => {
+    if (!clientId || !uid || selectedIds.size === 0) return;
+    await bulkDeleteFindings(clientId, [...selectedIds], uid);
+    setSelectedIds(new Set());
+    invalidate();
+  };
+
+  const handleImported = (result: AuditImportResult) => {
+    const parts: string[] = [];
+    if (result.created > 0) parts.push(`${result.created} new`);
+    if (result.updated > 0) parts.push(`${result.updated} updated`);
+    if (result.replaced > 0) parts.push(`${result.replaced} replaced`);
+    setImportMessage(parts.length > 0 ? `Import complete — ${parts.join(", ")}.` : "Import complete — no rows found.");
+    invalidate();
+  };
+
   // Conditionally mounted (not just `open`-toggled) so AuditFindingFormDialog's internal
   // form state — seeded once from `finding` via a useState initializer — is guaranteed
   // fresh every time it opens, instead of persisting stale values from a prior open.
@@ -107,7 +166,7 @@ export function AdminAuditFindingsPage() {
       onClose={() => setBulkUploadOpen(false)}
       clientId={clientId}
       uid={uid}
-      onImported={() => invalidate()}
+      onImported={handleImported}
     />
   );
 
@@ -116,6 +175,7 @@ export function AdminAuditFindingsPage() {
   if (findings.length === 0) {
     return (
       <div className="p-8 text-center text-sm text-ink/50 space-y-4">
+        {importMessage && <Alert tone="info">{importMessage}</Alert>}
         <p>
           No audit findings yet. Run <code>scripts/importAuditFindings.js</code> to bulk-import from a prior audit,
           or add one directly.
@@ -136,6 +196,7 @@ export function AdminAuditFindingsPage() {
 
   return (
     <div className="p-6 space-y-4">
+      {importMessage && <Alert tone="info">{importMessage}</Alert>}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KPICard title="Total findings" value={String(total)} icon={<ListChecks className="h-4 w-4" />} />
         <KPICard title="Fixed" value={String(fixedCount)} />
@@ -143,7 +204,7 @@ export function AdminAuditFindingsPage() {
         <KPICard title="Completion" value={total > 0 ? `${Math.round((fixedCount / total) * 100)}%` : "—"} />
       </div>
 
-      <AuditFindingFilters findings={findings} filters={filters} onChange={setFilters} mode="admin" />
+      <AuditFindingFilters findings={findings} filters={filters} onChange={handleFiltersChange} mode="admin" />
 
       <div className="flex items-center justify-end gap-3">
         <Button variant="secondary" size="sm" onClick={() => setBulkUploadOpen(true)} className="flex items-center gap-1.5">
@@ -163,9 +224,32 @@ export function AdminAuditFindingsPage() {
         </Select>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between rounded-brand border border-ink/10 bg-ink/[0.02] px-4 py-2.5">
+          <p className="text-sm font-medium text-ink/70">{selectedIds.size} selected</p>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleBulkDelete}>
+              Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] rounded-brand border border-ink/10 bg-white overflow-hidden" style={{ height: "70vh" }}>
-        <div className="border-b lg:border-b-0 lg:border-r border-ink/10 h-full">
-          <AuditFindingList findings={sorted} selectedId={selectedId} onSelect={handleSelect} businessMode={businessMode} />
+        <div className="border-b lg:border-b-0 lg:border-r border-ink/10 h-full min-h-0">
+          <AuditFindingList
+            findings={sorted}
+            selectedId={selectedId}
+            onSelect={handleSelect}
+            businessMode={businessMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectPage={toggleSelectPage}
+            onDeleteOne={handleDeleteOne}
+          />
         </div>
         <AuditFindingDetail
           key={selected?.id}

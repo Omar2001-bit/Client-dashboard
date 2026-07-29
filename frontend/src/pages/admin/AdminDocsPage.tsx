@@ -124,7 +124,7 @@ const SECTIONS: DocSection[] = [
           "Overview — Company details, engagement dates, Convert credentials, GA4 property, password management",
           "Convert Data Pulls — Incremental pull and full refresh from Convert.com",
           "Dashboard Settings — Experiment visibility, manual experiments, admin notes",
-          "Timeline Builder — Project phases linked to ClickUp tasks",
+          "Timeline Builder — Connects the client to ClickUp so their Timeline page shows a synced task Gantt chart",
           "Audit Findings — Manage tracking/analytics audit findings for this client",
         ],
       },
@@ -164,13 +164,12 @@ const SECTIONS: DocSection[] = [
       {
         title: "Timeline Builder Tab",
         description:
-          "Build the project roadmap the client sees on their Timeline page.",
+          "Connects the client to ClickUp so their Timeline page shows a live, auto-generated Gantt chart of synced tasks.",
         steps: [
-          "Add phases with a name, color, start date, and end date",
-          "Write a description that explains what the phase covers",
-          "Link phases to ClickUp tasks — the client sees real-time task status",
-          "Connect ClickUp once in the Settings page to enable task linking",
-          "Click Save to publish the timeline to the client dashboard",
+          "Connect ClickUp once in the Settings page — needed before any client can be linked",
+          "Pick a workspace and, optionally, a folder (usually named after the client)",
+          "Click Sync to load tasks — the client's Timeline page renders them as a Gantt chart automatically",
+          "Re-sync any time to pull the latest task status from ClickUp",
         ],
       },
       {
@@ -360,7 +359,7 @@ const SECTIONS: DocSection[] = [
       {
         title: "Connecting a Client's ClickUp Workspace",
         description:
-          "After saving the ClickUp config here, open any client's detail page, go to the Timeline Builder tab, and click 'Connect ClickUp'. This walks the client (or you, if you're doing it for them) through authorizing the workspace. Once connected, ClickUp tasks can be linked to timeline phases.",
+          "After saving the ClickUp config here, open any client's detail page, go to the Timeline Builder tab, pick a workspace/folder, and click Sync. Once synced, the client's Timeline page automatically renders those tasks as a Gantt chart.",
       },
     ],
   },

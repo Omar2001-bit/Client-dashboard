@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { BarChart3, ArrowLeft, RefreshCw } from "lucide-react";
 import { useGA4Data } from "@/hooks/useGA4Data";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { track } from "@/lib/activityTracker";
 import { calculateUplifts } from "@/pages/dashboard/dashboardData";
 import {
   StatusBadge,
@@ -124,7 +125,7 @@ export function GA4DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <p className="text-xs text-ink/40">Each experiment uses its Convert running period</p>
-          <Button variant="secondary" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <Button variant="secondary" size="sm" onClick={() => { track({ type: "ga4_refresh_click", metadata: { page: "dashboard" } }); refetch(); }} disabled={isFetching}>
             <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
           </Button>

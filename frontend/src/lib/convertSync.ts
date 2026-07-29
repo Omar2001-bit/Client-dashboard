@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, serverTimestamp, writeBatch, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { matchesNamingConvention } from "@/lib/namingConvention";
+import { fetchWithAuth, readJsonOrThrow } from "@/lib/apiClient";
 
 const CONVERT_BASE = "https://api.convert.com/api/v2";
 const REVENUE_GOAL_ID = 100479285;
@@ -25,6 +26,21 @@ export interface SyncProgress {
 export interface SyncResult {
   experimentCount: number;
   syncedAt: Date;
+  failedCount: number;
+}
+
+/**
+ * Fetches a client's Convert credentials from the server, which decrypts keyId/keySecret
+ * before returning them. Credentials may be AES-256-GCM encrypted at rest (after a
+ * rotation) and the browser has no safe way to decrypt them itself.
+ */
+async function fetchConvertCredentials(clientId: string): Promise<ConvertCred> {
+  const resp = await fetchWithAuth("/api/convert/credentials", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId }),
+  });
+  return readJsonOrThrow<ConvertCred>(resp, "Failed to load Convert credentials.");
 }
 
 /**
@@ -39,9 +55,7 @@ export async function syncFromConvert(
   const progress = (p: SyncProgress) => onProgress?.(p);
 
   // 1. Read credentials
-  const credSnap = await getDoc(doc(db, "clients", clientId, "credentials", "convert"));
-  if (!credSnap.exists()) throw new Error("No Convert credentials configured for this client.");
-  const cred = credSnap.data() as ConvertCred;
+  const cred = await fetchConvertCredentials(clientId);
 
   const accountId = String(cred.accountId ?? "");
   const projectId = String(cred.projectId ?? "");
@@ -108,6 +122,7 @@ export async function syncFromConvert(
       products: Record<string, unknown> | null;
     };
   }> = [];
+  const failedExperimentIds = new Set<string>();
 
   for (let i = 0; i < conventioned.length; i++) {
     if (i > 0 || listingRequestCount > 0) await sleep(REQUEST_DELAY_MS);
@@ -122,6 +137,7 @@ export async function syncFromConvert(
       report = await fetchWithRetry(aggUrl, aggBody, keyId, keySecret);
     } catch (err) {
       console.warn(`[convertSync] aggregated_report failed for ${exp.id}:`, (err as Error).message);
+      failedExperimentIds.add(String(exp.id));
     }
 
     // Daily reports — revenue, conversions, products (non-cumulative, per-variant).
@@ -155,6 +171,7 @@ export async function syncFromConvert(
         dailyReports[bucket] = await fetchWithRetry(dailyUrl, dailyBody, keyId, keySecret);
       } catch (err) {
         console.warn(`[convertSync] daily_report(${metric}) failed for ${exp.id}:`, (err as Error).message);
+        failedExperimentIds.add(String(exp.id));
       }
     }
 
@@ -215,7 +232,7 @@ export async function syncFromConvert(
   if (batchOps > 0) await batch.commit();
 
   progress({ phase: "done", fetched: enriched.length, total: enriched.length });
-  return { experimentCount: enriched.length, syncedAt: new Date() };
+  return { experimentCount: enriched.length, syncedAt: new Date(), failedCount: failedExperimentIds.size };
 }
 
 // ---- HTTP helpers ----
@@ -276,9 +293,7 @@ export async function pullNewFromConvert(
   const progress = (p: SyncProgress) => onProgress?.(p);
 
   // 1. Credentials
-  const credSnap = await getDoc(doc(db, "clients", clientId, "credentials", "convert"));
-  if (!credSnap.exists()) throw new Error("No Convert credentials configured for this client.");
-  const cred = credSnap.data() as ConvertCred;
+  const cred = await fetchConvertCredentials(clientId);
   const accountId = String(cred.accountId ?? "");
   const projectId = String(cred.projectId ?? "");
   const keyId = String(cred.keyId ?? "");
@@ -345,7 +360,7 @@ export async function pullNewFromConvert(
 
   if (toFetch.length === 0) {
     progress({ phase: "done", fetched: 0, total: 0, message: "Everything is already up to date." });
-    return { experimentCount: existingMap.size, syncedAt: new Date(), newCount: 0, updatedCount: 0 };
+    return { experimentCount: existingMap.size, syncedAt: new Date(), failedCount: 0, newCount: 0, updatedCount: 0 };
   }
 
   // 6. Fetch full reports for each experiment that needs it
@@ -355,6 +370,7 @@ export async function pullNewFromConvert(
     dailyReport: Record<string, unknown> | null;
     dailyReports: { revenue: Record<string, unknown> | null; conversions: Record<string, unknown> | null; products: Record<string, unknown> | null };
   }> = [];
+  const failedExperimentIds = new Set<string>();
 
   for (let i = 0; i < toFetch.length; i++) {
     if (i > 0 || listingRequestCount > 0) await sleep(REQUEST_DELAY_MS);
@@ -364,7 +380,10 @@ export async function pullNewFromConvert(
     const aggBody = JSON.stringify({ utc_offset: 0, start_time: startTime, end_time: endTime });
     let report: Record<string, unknown> | null = null;
     try { report = await fetchWithRetry(aggUrl, aggBody, keyId, keySecret); }
-    catch (err) { console.warn(`[pullNew] aggregated_report failed for ${exp.id}:`, (err as Error).message); }
+    catch (err) {
+      console.warn(`[pullNew] aggregated_report failed for ${exp.id}:`, (err as Error).message);
+      failedExperimentIds.add(String(exp.id));
+    }
 
     await sleep(REQUEST_DELAY_MS);
     const expStartTime = exp.start_time ? Math.max(startTime, Number(exp.start_time)) : startTime;
@@ -385,7 +404,10 @@ export async function pullNewFromConvert(
         report_type: "non_cumulative", metric, goal_id: REVENUE_GOAL_ID,
       });
       try { dailyReports[bucket] = await fetchWithRetry(dailyUrl, dailyBody, keyId, keySecret); }
-      catch (err) { console.warn(`[pullNew] daily_report(${metric}) failed for ${exp.id}:`, (err as Error).message); }
+      catch (err) {
+        console.warn(`[pullNew] daily_report(${metric}) failed for ${exp.id}:`, (err as Error).message);
+        failedExperimentIds.add(String(exp.id));
+      }
     }
 
     enriched.push({ experiment: exp, report, dailyReport: dailyReports.revenue, dailyReports });
@@ -418,7 +440,7 @@ export async function pullNewFromConvert(
   if (batchOps > 0) await batch.commit();
 
   progress({ phase: "done", fetched: enriched.length, total: enriched.length });
-  return { experimentCount: existingMap.size + newCount, syncedAt: new Date(), newCount, updatedCount };
+  return { experimentCount: existingMap.size + newCount, syncedAt: new Date(), failedCount: failedExperimentIds.size, newCount, updatedCount };
 }
 
 async function signHeaders(keyId: string, keySecret: string, url: string, body: string) {

@@ -51,7 +51,7 @@ export function ProfilePage() {
         <p className="mt-1 text-sm text-ink/50">{user?.email}</p>
       </div>
 
-      <Card>
+      <Card data-tutorial="profile-password">
         <CardHeader>
           <h2 className="font-semibold text-ink">Change Password</h2>
         </CardHeader>

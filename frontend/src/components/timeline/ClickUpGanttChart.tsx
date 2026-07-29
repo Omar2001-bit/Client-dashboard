@@ -6,6 +6,7 @@ import { TaskDetailDialog } from "@/components/clickup/ClickUpTaskDetail";
 import { groupTasksByList, type ClickUpTaskNode } from "@/lib/clickupTasks";
 import { getTaskGanttBounds, getTaskGanttLayout } from "@/lib/clickupGantt";
 import { getTimelineTicks } from "@/lib/timeline";
+import { track } from "@/lib/activityTracker";
 import type { ClickUpList, ClickUpTask } from "@/types";
 
 interface Props {
@@ -28,13 +29,20 @@ export function ClickUpGanttChart({ tasks, lists, connected }: Props) {
 
   const groups = useMemo(() => groupTasksByList(tasks, lists), [tasks, lists]);
 
-  const toggleExpanded = (id: string) => {
+  const toggleExpanded = (id: string, groupName: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const expanding = !next.has(id);
+      if (expanding) next.add(id);
+      else next.delete(id);
+      track({ type: "clickup_group_toggle", metadata: { source: "timeline_gantt", groupName, action: expanding ? "expand" : "collapse" } });
       return next;
     });
+  };
+
+  const handleSelectTask = (task: ClickUpTask) => {
+    track({ type: "clickup_task_view", metadata: { source: "timeline_gantt", taskId: task.id, taskName: task.name } });
+    setSelectedTask(task);
   };
 
   if (!connected) {
@@ -73,7 +81,7 @@ export function ClickUpGanttChart({ tasks, lists, connected }: Props) {
             return (
               <Card key={group.id}>
                 <CardHeader
-                  onClick={() => toggleExpanded(group.id)}
+                  onClick={() => toggleExpanded(group.id, group.name)}
                   className="flex cursor-pointer items-center justify-between select-none"
                 >
                   <div className="flex items-center gap-2">
@@ -137,7 +145,7 @@ export function ClickUpGanttChart({ tasks, lists, connected }: Props) {
                               <button
                                 key={task.id}
                                 type="button"
-                                onClick={() => setSelectedTask(task)}
+                                onClick={() => handleSelectTask(task)}
                                 className={`grid w-full ${GANTT_GRID_COLS} items-center gap-0 border-b border-ink/5 py-2 text-left last:border-b-0 hover:bg-ink/[0.02]`}
                               >
                                 <p className="truncate px-3 text-sm text-ink">{task.name}</p>

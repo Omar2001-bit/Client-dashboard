@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
+import { track } from "@/lib/activityTracker";
 import { useGa4ReportData } from "@/hooks/useGa4ReportData";
 import { useGa4ReportsMetadata } from "@/hooks/useGa4ReportsMetadata";
 import { metricLabel } from "@/lib/ga4Reports/metricLabels";
@@ -40,6 +41,7 @@ export default function ReportPreviewCard({ clientId, report, to }: Props) {
   return (
     <Link
       to={to}
+      onClick={() => track({ type: "analytics_report_view", metadata: { reportId: report.id, reportName: report.name } })}
       className="focus-ring animate-rise-in group flex flex-col gap-1 rounded-2xl border border-ink/10 bg-white p-4 transition-all duration-150 hover:border-brand-500/40 hover:bg-ink/[0.02] active:scale-[0.99]"
     >
       <h3 className="truncate text-sm font-semibold text-ink group-hover:text-brand-700">{report.name}</h3>

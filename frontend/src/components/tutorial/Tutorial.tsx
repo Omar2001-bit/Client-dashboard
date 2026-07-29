@@ -55,16 +55,28 @@ export function Tutorial({ steps, currentStep, onNext, onSkipStep, onSkipAll }: 
   const [spotlight, setSpotlight] = useState<Rect | null>(null);
   const [visible, setVisible] = useState(false);
   const attemptsRef = useRef(0);
+  const targetElRef = useRef<Element | null>(null);
 
   const step = steps[currentStep];
   const isLast = currentStep === steps.length - 1;
   const pad = step?.padding ?? 12;
+
+  // Lock background scroll for the lifetime of the tour so the spotlight
+  // can never drift away from its target while a step is showing.
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     if (!step) return;
     setVisible(false);
     setSpotlight(null);
     attemptsRef.current = 0;
+    targetElRef.current = null;
 
     const doFind = () => {
       const fullPath = location.pathname + location.search;
@@ -80,6 +92,7 @@ export function Tutorial({ steps, currentStep, onNext, onSkipStep, onSkipAll }: 
       const tryFind = () => {
         const el = document.querySelector(step.target!);
         if (el) {
+          targetElRef.current = el;
           el.scrollIntoView({ behavior: "smooth", block: "center" });
           setTimeout(() => {
             const r = el.getBoundingClientRect();
@@ -100,6 +113,24 @@ export function Tutorial({ steps, currentStep, onNext, onSkipStep, onSkipAll }: 
     doFind();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  // Keep the spotlight aligned with its target even if a nested scrollable
+  // container scrolls or the window resizes (body scroll itself is locked above).
+  useEffect(() => {
+    const recompute = () => {
+      const el = targetElRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setSpotlight({ top: r.top - pad, left: r.left - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+    };
+
+    window.addEventListener("scroll", recompute, true);
+    window.addEventListener("resize", recompute);
+    return () => {
+      window.removeEventListener("scroll", recompute, true);
+      window.removeEventListener("resize", recompute);
+    };
+  }, [currentStep, pad]);
 
   if (!step || !visible) return null;
 

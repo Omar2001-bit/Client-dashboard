@@ -37,6 +37,7 @@ try {
 }
 
 const app = express();
+app.set("trust proxy", true); // Render sits behind a proxy — needed for req.ip to reflect the real client
 
 app.use(cors({
   origin: process.env.NODE_ENV === "production"
@@ -133,6 +134,46 @@ function requireClientOrAdminOwnership(getClientId) {
   };
 }
 
+// Like requireClientOrAdminOwnership, but excludes plain "admin" — used for routes that
+// return a client's raw paid price, which only executiveAdmin (or the client themselves)
+// should be able to read.
+function requireExecutiveAdminOrClientOwnership(getClientId) {
+  return async function (req, res, next) {
+    try {
+      const idToken = getAuthToken(req);
+      if (!idToken) return res.status(401).json({ error: "Missing auth token" });
+
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      if (decoded.role === "executiveAdmin") {
+        req.user = decoded;
+        return next();
+      }
+
+      const requestedClientId = getClientId(req);
+      if (decoded.role === "client" && decoded.clientId && decoded.clientId === requestedClientId) {
+        req.user = decoded;
+        return next();
+      }
+
+      const userSnap = await admin.firestore().doc(`users/${decoded.uid}`).get();
+      const userData = userSnap.data();
+      if (userData?.role === "executiveAdmin") {
+        req.user = decoded;
+        return next();
+      }
+      if (userData?.role === "client" && userData.clientId && userData.clientId === requestedClientId) {
+        req.user = decoded;
+        return next();
+      }
+
+      return res.status(403).json({ error: "Not authorized for this client" });
+    } catch (err) {
+      console.error("[auth] executive-admin-or-client-ownership check failed:", err.message);
+      return res.status(401).json({ error: "Invalid auth token" });
+    }
+  };
+}
+
 // One-off fix for /api/ga4/experiment-data, which historically took a bare `propertyId`
 // with no clientId at all (finding C4 — it had no auth check whatsoever). The caller's
 // clientId comes only from the verified token; the route then 403s unless that client's
@@ -180,74 +221,29 @@ async function requireClientOwnsGA4Property(req, res, next) {
 }
 
 // ── Encryption helpers (AES-256-GCM) ──────────────────────────────────────────
-// Ported verbatim from functions/src/lib/encryption.ts. Used for per-client
-// secrets (Convert credentials, ClickUp OAuth tokens) stored in Firestore.
-// Format: iv(hex):authTag(hex):ciphertext(hex).
+// See server/lib/encryption.js. Used for per-client secrets (Convert
+// credentials, ClickUp OAuth tokens) stored in Firestore.
+const { encrypt, decrypt, readConvertCredential } = require("./lib/encryption");
 
-const ENCRYPTION_ALGORITHM = "aes-256-gcm";
-const ENCRYPTION_IV_LENGTH = 16;
-
-function getEncryptionKey() {
-  const hex = process.env.ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
-    throw new Error("ENCRYPTION_KEY must be a 32-byte (64 hex char) value");
-  }
-  return Buffer.from(hex, "hex");
-}
-
-function encrypt(plaintext) {
-  const key = getEncryptionKey();
-  const iv = crypto.randomBytes(ENCRYPTION_IV_LENGTH);
-  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
-}
-
-function decrypt(ciphertext) {
-  const key = getEncryptionKey();
-  const [ivHex, authTagHex, dataHex] = ciphertext.split(":");
-  if (!ivHex || !authTagHex || !dataHex) throw new Error("Invalid ciphertext format");
-  const iv = Buffer.from(ivHex, "hex");
-  const authTag = Buffer.from(authTagHex, "hex");
-  const data = Buffer.from(dataHex, "hex");
-  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  return decipher.update(data) + decipher.final("utf8");
-}
-
-const GMAIL_USER = process.env.GMAIL_USER || "optimizerssupport@gmail.com";
 const SUPPORT_EMAIL = "omar@optimizers.agency";
+const RESEND_FROM = process.env.RESEND_FROM || "Optimizers Support <onboarding@resend.dev>";
 const CLICKUP_API_BASE = "https://api.clickup.com/api/v2";
 const CLICKUP_ACCESS_DOC = "appConfig/clickupAccess";
 
-function getGmailClient() {
-  const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
-  );
-  auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-  return google.gmail({ version: "v1", auth });
-}
-
+// Sends over Resend's HTTPS API — not SMTP, so it isn't affected by Render's
+// SMTP-port block, and it doesn't depend on a Gmail OAuth refresh token.
 async function sendEmail({ to, subject, html }) {
-  const raw = Buffer.from(
-    [
-      `From: Optimizers Support <${GMAIL_USER}>`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      "MIME-Version: 1.0",
-      "Content-Type: text/html; charset=UTF-8",
-      "",
-      html,
-    ].join("\r\n")
-  ).toString("base64url");
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
 
-  const gmail = getGmailClient();
-  await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+  await axios.post(
+    "https://api.resend.com/emails",
+    { from: RESEND_FROM, to: [to], subject, html },
+    { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+  );
 }
 
-// ── Support emails → Gmail ────────────────────────────────────────────────────
+// ── Support emails → Resend ───────────────────────────────────────────────────
 
 async function readClickUpAccessConfig() {
   const envToken = String(process.env.CLICKUP_PERSONAL_TOKEN || process.env.CLICKUP_API_TOKEN || "").trim();
@@ -649,13 +645,35 @@ app.post("/api/support-email", async (req, res) => {
   }
 });
 
-// ── Password reset emails → Gmail (to client emails) ─────────────────────────
+// ── Password reset emails → Resend (to client emails) ────────────────────────
 
-app.post("/api/send-password-reset", async (req, res) => {
+// Plain in-memory per-IP limiter — good enough for a single Render instance;
+// resets on redeploy, which is an acceptable tradeoff for this low-traffic route.
+const passwordResetAttempts = new Map(); // ip -> timestamps[]
+const PASSWORD_RESET_RATE_LIMIT = 5;
+const PASSWORD_RESET_RATE_WINDOW_MS = 15 * 60 * 1000;
+
+function rateLimitPasswordReset(req, res, next) {
+  const ip = req.ip || "unknown";
+  const now = Date.now();
+  const attempts = (passwordResetAttempts.get(ip) || []).filter(
+    (t) => now - t < PASSWORD_RESET_RATE_WINDOW_MS
+  );
+  if (attempts.length >= PASSWORD_RESET_RATE_LIMIT) {
+    return res.status(429).json({ error: "Too many requests. Please try again later." });
+  }
+  attempts.push(now);
+  passwordResetAttempts.set(ip, attempts);
+  next();
+}
+
+app.post("/api/send-password-reset", rateLimitPasswordReset, async (req, res) => {
+  const { email, clientName } = req.body ?? {};
+  if (!email) return res.status(400).json({ error: "email is required" });
+
+  // Always report success, even if the email has no account — otherwise this
+  // (unauthenticated) route lets a caller enumerate which emails are registered.
   try {
-    const { email, clientName } = req.body ?? {};
-    if (!email) return res.status(400).json({ error: "email is required" });
-
     const resetLink = await admin.auth().generatePasswordResetLink(email);
 
     await sendEmail({
@@ -680,11 +698,10 @@ app.post("/api/send-password-reset", async (req, res) => {
     });
 
     console.log("[password-reset] sent to", email);
-    res.json({ success: true });
   } catch (err) {
     console.error("[password-reset] error:", err.message);
-    res.status(500).json({ error: err.message });
   }
+  res.json({ success: true });
 });
 
 // ── Notify executive admin when a regular admin creates a client ──────────────
@@ -733,6 +750,49 @@ app.post("/api/notify-executive-admin", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("[notify-executive-admin] error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── New-user invite emails → Resend ───────────────────────────────────────────
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://client-dash-9b027.web.app";
+
+app.post("/api/send-invite-email", requireAdmin, async (req, res) => {
+  try {
+    const { email, name } = req.body ?? {};
+    if (!email) return res.status(400).json({ error: "email is required" });
+
+    const signInLink = await admin.auth().generateSignInWithEmailLink(email, {
+      url: `${FRONTEND_URL}/set-password`,
+      handleCodeInApp: true,
+    });
+
+    await sendEmail({
+      to: email,
+      subject: "You're invited to the Optimizers dashboard",
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;color:#0e1c26">
+          <h2 style="margin:0 0 16px">Welcome to Optimizers</h2>
+          ${name ? `<p>Hi ${name},</p>` : ""}
+          <p>An account has been created for you. Click below to set your password and sign in.</p>
+          <p style="margin:24px 0">
+            <a href="${signInLink}"
+              style="background:#6ae499;color:#0e1c26;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">
+              Set my password
+            </a>
+          </p>
+          <p style="font-size:12px;color:#999">
+            This link expires in 1 hour. If you weren't expecting this, you can ignore this email.
+          </p>
+        </div>
+      `,
+    });
+
+    console.log("[send-invite-email] sent to", email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[send-invite-email] error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1117,18 +1177,6 @@ const FRANKFURTER_BASE_URL = "https://api.frankfurter.dev/v2";
 const EXCHANGE_RATE_API_BASE_URL = "https://v6.exchangerate-api.com/v6";
 const EXCHANGE_RATE_API_KEY = process.env.EXCHANGE_RATE_API_KEY;
 
-// Convert.com credentials may be stored either as plaintext (legacy createUserDirectly
-// flow) or as AES-encrypted blobs (createClientUser / rotateClientCredentials flow).
-// Try decrypt, fall back to the raw value if it doesn't look encrypted.
-function readConvertCredential(value) {
-  const s = String(value ?? "");
-  if (!s) return "";
-  if (/^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i.test(s)) {
-    try { return decrypt(s); } catch { /* fall through */ }
-  }
-  return s;
-}
-
 function normalizeConvertCurrency(value) {
   const currency = String(value ?? "").trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency)) {
@@ -1241,7 +1289,7 @@ async function getUsdExchangeRate(targetCurrency) {
   }
 }
 
-app.post("/api/convert/service-price", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
+app.post("/api/convert/service-price", requireExecutiveAdminOrClientOwnership((req) => req.body?.clientId), async (req, res) => {
   const clientId = String(req.body?.clientId || "");
   if (!clientId) return res.status(400).json({ error: "clientId required." });
 
@@ -1336,6 +1384,33 @@ function httpErrorFromConvertAxios(err, action) {
   httpErr.status = status === 401 || status === 403 ? 403 : status === 404 ? 404 : status ? 503 : 500;
   return httpErr;
 }
+
+// Returns a client's Convert credentials with keyId/keySecret decrypted. Needed by the
+// browser-side sync (frontend/src/lib/convertSync.ts), which signs Convert API requests
+// with Web Crypto and can't run the server's AES-256-GCM decryption itself. Doesn't expose
+// anything the owning client couldn't already read directly from Firestore (see
+// firestore.rules clients/{clientId}/credentials rule) — it just decrypts it first.
+app.post("/api/convert/credentials", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
+  const clientId = String(req.body?.clientId || "");
+  if (!clientId) return res.status(400).json({ error: "clientId required." });
+
+  try {
+    const db = admin.firestore();
+    const credSnap = await db.collection("clients").doc(clientId).collection("credentials").doc("convert").get();
+    if (!credSnap.exists) return res.status(404).json({ error: "No Convert credentials for this client." });
+
+    const cred = credSnap.data();
+    res.json({
+      accountId: String(cred.accountId ?? ""),
+      projectId: String(cred.projectId ?? ""),
+      keyId: readConvertCredential(cred.keyId),
+      keySecret: readConvertCredential(cred.keySecret),
+    });
+  } catch (err) {
+    console.error("[convert/credentials]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.post("/api/convert/experiments", requireClientOrAdminOwnership((req) => req.body?.clientId), async (req, res) => {
   const clientId = String(req.body?.clientId || "");

@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { Download, Upload as UploadIcon } from "lucide-react";
+import { Download, Upload as UploadIcon, AlertTriangle } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
-import { bulkCreateFindings } from "@/lib/auditFindings";
+import { bulkImportFindings, type AuditImportMode, type AuditImportResult } from "@/lib/auditFindings";
 import { buildAuditFindingsCsvTemplate, parseAuditFindingsCsv, type AuditFindingCsvParseResult } from "@/lib/auditFindingsCsv";
 
 interface Props {
@@ -10,10 +10,16 @@ interface Props {
   onClose: () => void;
   clientId: string;
   uid: string;
-  onImported: (count: number) => void;
+  onImported: (result: AuditImportResult) => void;
 }
 
 const MAX_ERRORS_SHOWN = 10;
+
+const IMPORT_MODES: Array<{ value: AuditImportMode; label: string; description: string }> = [
+  { value: "add", label: "Add on top", description: "Import every row as a brand-new finding, alongside whatever's already there." },
+  { value: "update", label: "Update existing", description: "Match rows to existing findings by tool/tab/issue text and refresh their content — progress and notes are preserved. Unmatched rows are added as new; existing findings not in this file are left alone." },
+  { value: "replace", label: "Replace all", description: "Remove every existing finding for this client (and its tracked progress) before importing this file as the new full set." },
+];
 
 function downloadTemplate() {
   const blob = new Blob([buildAuditFindingsCsvTemplate()], { type: "text/csv;charset=utf-8;" });
@@ -32,6 +38,7 @@ export function AuditFindingBulkUploadDialog({ open, onClose, clientId, uid, onI
   const [result, setResult] = useState<AuditFindingCsvParseResult | null>(null);
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<AuditImportMode>("add");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,14 +54,22 @@ export function AuditFindingBulkUploadDialog({ open, onClose, clientId, uid, onI
   const handleImport = async () => {
     if (!result || result.rows.length === 0) return;
     setSaving(true);
-    const ids = await bulkCreateFindings(clientId, result.rows, uid);
+    const importResult = await bulkImportFindings(clientId, result.rows, uid, mode);
     setSaving(false);
-    onImported(ids.length);
+    onImported(importResult);
     onClose();
   };
 
   const errorsShown = result?.errors.slice(0, MAX_ERRORS_SHOWN) ?? [];
   const extraErrorCount = (result?.errors.length ?? 0) - errorsShown.length;
+
+  const importButtonLabel = result
+    ? mode === "replace"
+      ? `Replace all & import ${result.rows.length} finding${result.rows.length === 1 ? "" : "s"}`
+      : mode === "update"
+        ? `Update matching & import ${result.rows.length} finding${result.rows.length === 1 ? "" : "s"}`
+        : `Import ${result.rows.length} finding${result.rows.length === 1 ? "" : "s"}`
+    : "Import";
 
   return (
     <Dialog
@@ -68,12 +83,12 @@ export function AuditFindingBulkUploadDialog({ open, onClose, clientId, uid, onI
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant={mode === "replace" ? "danger" : "primary"}
             loading={saving}
             disabled={!result || result.rows.length === 0}
             onClick={handleImport}
           >
-            {result ? `Import ${result.rows.length} finding${result.rows.length === 1 ? "" : "s"}` : "Import"}
+            {importButtonLabel}
           </Button>
         </>
       }
@@ -86,6 +101,37 @@ export function AuditFindingBulkUploadDialog({ open, onClose, clientId, uid, onI
           <Button variant="secondary" size="sm" onClick={downloadTemplate} className="flex shrink-0 items-center gap-1.5">
             <Download className="h-4 w-4" /> Template
           </Button>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-ink/80 mb-1.5">Import mode</label>
+          <div className="space-y-2">
+            {IMPORT_MODES.map((option) => (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink/10 p-3 text-sm hover:bg-ink/[0.02]"
+              >
+                <input
+                  type="radio"
+                  name="audit-import-mode"
+                  value={option.value}
+                  checked={mode === option.value}
+                  onChange={() => setMode(option.value)}
+                  className="mt-0.5 h-4 w-4 accent-brand-500"
+                />
+                <span>
+                  <span className="block font-medium text-ink">{option.label}</span>
+                  <span className="block text-xs text-ink/50">{option.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {mode === "replace" && (
+            <div className="mt-2 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              This will remove all existing findings for this client — and their tracked progress — before importing this file.
+            </div>
+          )}
         </div>
 
         <div>

@@ -1,5 +1,6 @@
 const admin = require("firebase-admin");
 const crypto = require("node:crypto");
+const { readConvertCredential } = require("./lib/encryption");
 
 const CONVERT_BASE = "https://api.convert.com/api/v2";
 const REVENUE_GOAL_ID = 100479285;
@@ -60,7 +61,9 @@ async function syncClientIncremental(clientId) {
     console.log(`[sync] No credentials for client ${clientId}, skipping`);
     return { newCount: 0, updatedCount: 0 };
   }
-  const { accountId, projectId, keyId, keySecret } = credSnap.data();
+  const { accountId, projectId, keyId: rawKeyId, keySecret: rawKeySecret } = credSnap.data();
+  const keyId = readConvertCredential(rawKeyId);
+  const keySecret = readConvertCredential(rawKeySecret);
   if (!accountId || !projectId || !keyId || !keySecret) {
     console.log(`[sync] Incomplete credentials for client ${clientId}, skipping`);
     return { newCount: 0, updatedCount: 0 };

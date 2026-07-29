@@ -74,7 +74,7 @@ export function AuditFindingsPage() {
         style={{ height: "70vh" }}
         data-tutorial="audit-findings-list"
       >
-        <div className="border-b lg:border-b-0 lg:border-r border-ink/10 h-full">
+        <div className="border-b lg:border-b-0 lg:border-r border-ink/10 h-full min-h-0">
           <AuditFindingList findings={filtered} selectedId={selectedId} onSelect={handleSelect} businessMode={businessMode} />
         </div>
         <AuditFindingDetail

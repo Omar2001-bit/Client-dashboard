@@ -1,4 +1,5 @@
 import { BarChart3, FlaskConical } from "lucide-react";
+import { track } from "@/lib/activityTracker";
 import { ChoiceCard } from "@/components/ui";
 
 export function GA4DataViewPage() {
@@ -25,12 +26,14 @@ export function GA4DataViewPage() {
             title="Dashboard View"
             description="Summary of all GA4-tracked experiments — user counts, sessions, revenue, and variation comparisons."
             icon={BarChart3}
+            onClick={() => track({ type: "ga4_view_selected", metadata: { view: "Dashboard View" } })}
           />
           <ChoiceCard
             to="/dashboard/ga4/experiments"
             title="Experiments View"
             description="Per-experiment breakdown showing original vs variation audience metrics from GA4."
             icon={FlaskConical}
+            onClick={() => track({ type: "ga4_view_selected", metadata: { view: "Experiments View" } })}
           />
         </div>
       </div>

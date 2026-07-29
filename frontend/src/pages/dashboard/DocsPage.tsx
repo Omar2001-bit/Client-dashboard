@@ -310,27 +310,17 @@ const SECTIONS: DocSection[] = [
     id: "timeline",
     icon: CalendarDays,
     title: "Timeline",
-    subtitle: "Your project roadmap and engagement phases",
+    subtitle: "Your project roadmap, synced live from ClickUp",
     content: [
       {
         title: "Reading your timeline",
         description:
-          "The Timeline shows the full roadmap of your engagement — broken into phases with start dates, end dates, deliverables, and tasks.",
+          "The Timeline shows a live Gantt chart of your project, auto-generated from our ClickUp task tracker.",
         steps: [
           "Click 'Timeline' in the left sidebar",
-          "Each coloured block is a phase of your project",
-          "The timeline spans from your engagement start to end date",
-          "Click on any phase to expand it and see its deliverables and linked tasks",
-        ],
-      },
-      {
-        title: "Understanding phases",
-        description: "Each phase represents a distinct stage of your CRO programme.",
-        steps: [
-          "Phase name and colour are shown on the block",
-          "Hover over a phase to see its start and end dates",
-          "Click a phase to see its description and deliverables — linked ClickUp tasks for the whole project are also viewable in the Project Tasks section",
+          "Each bar represents a synced ClickUp task, positioned by its schedule",
           "Tasks show their status (Open, In Progress, Complete)",
+          "The chart updates automatically as our team makes progress — no manual updates needed",
         ],
       },
     ],

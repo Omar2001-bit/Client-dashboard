@@ -83,6 +83,18 @@ export function CreateClientPage() {
     try {
       const result = await createUserDirectly(form);
 
+      // Best-effort invite email — never blocks client creation from succeeding
+      try {
+        const resp = await fetchWithAuth("/api/send-invite-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.userEmail.trim().toLowerCase(), name: form.userName.trim() }),
+        });
+        if (!resp.ok) console.warn("[send-invite-email] server error:", await resp.text());
+      } catch (e) {
+        console.warn("[send-invite-email] failed:", e);
+      }
+
       // Notify executive admin when a regular admin creates a client (they need to set the service price)
       if (form.role === "client" && currentRole !== "executiveAdmin") {
         const currentUser = getAuth().currentUser;

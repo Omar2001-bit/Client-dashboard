@@ -28,13 +28,10 @@ export function ForgotPasswordPage() {
         throw new Error(data.error ?? "Server error");
       }
       setSent(true);
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (msg.includes("USER_NOT_FOUND") || msg.includes("user-not-found")) {
-        setError("No account found with that email address.");
-      } else {
-        setError("Could not send reset email. Check the address and try again.");
-      }
+    } catch {
+      // Deliberately generic: the backend never reveals whether an account
+      // exists for this email, so neither does this message.
+      setError("Could not send reset email. Please try again.");
     } finally {
       setLoading(false);
     }

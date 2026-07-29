@@ -105,12 +105,14 @@ export function ClientListPage() {
                       <TD>USD {(client.servicePrice ?? client.agencyFee)?.toLocaleString()}</TD>
                     )}
                     <TD className="text-right space-x-3">
-                      <Link
-                        to={`/admin/clients/${client.id}/preview`}
-                        className="text-xs text-ink/50 hover:text-ink"
-                      >
-                        Preview
-                      </Link>
+                      {currentRole === "executiveAdmin" && (
+                        <Link
+                          to={`/admin/clients/${client.id}/preview`}
+                          className="text-xs text-ink/50 hover:text-ink"
+                        >
+                          Preview
+                        </Link>
+                      )}
                       <Link
                         to={`/admin/clients/${client.id}`}
                         className="text-xs font-medium text-brand-600 hover:underline"

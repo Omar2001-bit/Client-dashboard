@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { TaskDetailDialog } from "@/components/clickup/ClickUpTaskDetail";
 import { TaskRow } from "@/components/clickup/TaskRow";
 import { groupTasksByList, countTaskNodes, type ClickUpTaskNode } from "@/lib/clickupTasks";
+import { track } from "@/lib/activityTracker";
 
 export function ClickUpTasksPage() {
   const clientId = useAuthStore((s) => s.clientId);
@@ -20,13 +21,20 @@ export function ClickUpTasksPage() {
     [timeline.clickup?.tasks, timeline.clickup?.lists]
   );
 
-  const toggleExpanded = (id: string) => {
+  const toggleExpanded = (id: string, groupName: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const expanding = !next.has(id);
+      if (expanding) next.add(id);
+      else next.delete(id);
+      track({ type: "clickup_group_toggle", metadata: { source: "project_tasks", groupName, action: expanding ? "expand" : "collapse" } });
       return next;
     });
+  };
+
+  const handleSelectTask = (task: ClickUpTaskNode) => {
+    track({ type: "clickup_task_view", metadata: { source: "project_tasks", taskId: task.id, taskName: task.name } });
+    setSelectedTask(task);
   };
 
   if (!authLoading && !clientId) return <div className="p-8 text-sm text-ink/50">No client workspace is linked to this account.</div>;
@@ -60,7 +68,7 @@ export function ClickUpTasksPage() {
             return (
               <Card key={group.id}>
                 <CardHeader
-                  onClick={() => toggleExpanded(group.id)}
+                  onClick={() => toggleExpanded(group.id, group.name)}
                   className="flex cursor-pointer items-center justify-between select-none"
                 >
                   <div className="flex items-center gap-2">
@@ -78,7 +86,7 @@ export function ClickUpTasksPage() {
                 {expanded && (
                   <CardBody className="p-0">
                     {group.tasks.length > 0 ? (
-                      group.tasks.map((task) => <TaskRow key={task.id} task={task} depth={0} onSelect={setSelectedTask} />)
+                      group.tasks.map((task) => <TaskRow key={task.id} task={task} depth={0} onSelect={handleSelectTask} />)
                     ) : (
                       <p className="px-4 py-6 text-center text-sm text-ink/45">No tasks in this list yet.</p>
                     )}

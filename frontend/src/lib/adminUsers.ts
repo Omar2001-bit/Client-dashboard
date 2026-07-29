@@ -53,7 +53,6 @@ export async function createUserDirectly(form: CreateClientFormData) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         lastLogin: null,
-        skipOnboardingEmail: true,
       });
 
       return { uid: credential.user.uid, clientId };

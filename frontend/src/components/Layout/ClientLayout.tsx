@@ -6,15 +6,15 @@ import { useTutorial } from "@/hooks/useTutorial";
 import { Tutorial } from "@/components/tutorial/Tutorial";
 import { Logo } from "@/components/ui/Logo";
 import { FloatingChat } from "@/components/chat/FloatingChat";
-import { useAuthStore } from "@/store/authStore";
-import { useDashboardSettings } from "@/hooks/useDashboardSettings";
-import { useClickUpConnected } from "@/hooks/useClientTimeline";
 
-const baseNavItems = [
+const navItems = [
   { to: "/dashboard/ab-testing", icon: FlaskConical, label: "A/B Testing Results", end: true },
   { to: "/dashboard/ga4", icon: BarChart3, label: "GA4 Data View" },
+  { to: "/dashboard/analytics-reports", icon: LineChart, label: "Analytics Reports" },
   { to: "/dashboard/page-speed", icon: Gauge, label: "Page Speed" },
   { to: "/dashboard/timeline", icon: CalendarDays, label: "Timeline" },
+  { to: "/dashboard/audit-findings", icon: ListChecks, label: "Audit Findings" },
+  { to: "/dashboard/tasks", icon: ClipboardList, label: "Project Tasks" },
   { to: "/dashboard/book-meeting", icon: CalendarPlus, label: "Book a Meeting" },
   { to: "/dashboard/support", icon: MessageSquare, label: "Support" },
   { to: "/dashboard/docs", icon: BookOpen, label: "Docs & Tutorial" },
@@ -26,16 +26,6 @@ export function ClientLayout() {
   const navigate = useNavigate();
   useActivityTracker();
   const { active, currentStep, steps, start, next, skipStep, skipAll } = useTutorial();
-  const clientId = useAuthStore((s) => s.clientId);
-  const { settings } = useDashboardSettings(clientId);
-  const clickUpConnected = useClickUpConnected(clientId);
-
-  const navItems = [
-    ...baseNavItems,
-    ...(settings.auditTrackingEnabled ? [{ to: "/dashboard/audit-findings", icon: ListChecks, label: "Audit Findings" }] : []),
-    ...(settings.ga4ReportsEnabled ? [{ to: "/dashboard/analytics-reports", icon: LineChart, label: "Analytics Reports" }] : []),
-    ...(clickUpConnected ? [{ to: "/dashboard/tasks", icon: ClipboardList, label: "Project Tasks" }] : []),
-  ];
 
   const handleLogout = async () => {
     await logout();
