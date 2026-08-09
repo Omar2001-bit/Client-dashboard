@@ -8,9 +8,11 @@ import { Select } from "@/components/ui/Select";
 import { Alert } from "@/components/ui/Alert";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Badge } from "@/components/ui/Badge";
 import { Tabs } from "@/components/ui/Tabs";
-import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User, ListChecks, LineChart } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, RefreshCw, Copy, Shuffle, Settings2, CalendarDays, User, ListChecks, LineChart, AlertTriangle } from "lucide-react";
 import { syncFromConvert, pullNewFromConvert } from "@/lib/convertSync";
+import { isEngagementExpired } from "@/lib/clientEngagement";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ClientDoc, GA4Property } from "@/types";
 import { useAuthStore } from "@/store/authStore";
@@ -239,7 +241,14 @@ export function ClientDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-ink">{client.name}</h1>
-            <StatusBadge status={client.status} />
+            <div className="flex items-center gap-2 mt-1">
+              <StatusBadge status={client.status} />
+              {isEngagementExpired(client) && (
+                <Badge tone="warning" className="flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Engagement ended
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </div>

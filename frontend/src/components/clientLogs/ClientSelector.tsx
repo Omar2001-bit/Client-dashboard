@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Tooltip } from "@/components/ui";
 import type { ClientDoc } from "@/types";
 
 export function ClientSelector({ onSelect }: { onSelect: (client: ClientDoc) => void }) {
@@ -38,8 +39,12 @@ export function ClientSelector({ onSelect }: { onSelect: (client: ClientDoc) => 
                 {c.name?.[0]?.toUpperCase() ?? "?"}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-ink truncate">{c.name}</p>
-                <p className="text-xs text-ink/40 truncate">{c.contactEmail}</p>
+                <Tooltip label={c.name} className="block w-full min-w-0">
+                  <p className="font-semibold text-ink truncate">{c.name}</p>
+                </Tooltip>
+                <Tooltip label={c.contactEmail} className="block w-full min-w-0">
+                  <p className="text-xs text-ink/40 truncate">{c.contactEmail}</p>
+                </Tooltip>
               </div>
             </button>
           ))}

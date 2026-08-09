@@ -55,6 +55,7 @@ export function AdminAuditFindingsPage() {
   const activeFindings = findings.filter((f) => !f.deleted);
   const fixedCount = activeFindings.filter((f) => f.progressStatus === "fixed").length;
   const notFixedCount = activeFindings.filter((f) => f.progressStatus === "notfixed").length;
+  const notReviewedCount = activeFindings.filter((f) => f.progressStatus === "unreviewed").length;
   const total = activeFindings.length;
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["auditFindings", clientId] });
@@ -197,10 +198,11 @@ export function AdminAuditFindingsPage() {
   return (
     <div className="p-6 space-y-4">
       {importMessage && <Alert tone="info">{importMessage}</Alert>}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <KPICard title="Total findings" value={String(total)} icon={<ListChecks className="h-4 w-4" />} />
         <KPICard title="Fixed" value={String(fixedCount)} />
         <KPICard title="Not fixed" value={String(notFixedCount)} />
+        <KPICard title="Not reviewed" value={String(notReviewedCount)} />
         <KPICard title="Completion" value={total > 0 ? `${Math.round((fixedCount / total) * 100)}%` : "—"} />
       </div>
 

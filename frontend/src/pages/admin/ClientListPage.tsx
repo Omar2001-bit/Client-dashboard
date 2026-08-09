@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -16,12 +16,14 @@ import {
   EmptyState,
   Skeleton,
 } from "@/components/ui";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, AlertTriangle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { isEngagementExpired } from "@/lib/clientEngagement";
 import type { ClientDoc } from "@/types";
 
 export function ClientListPage() {
   const currentRole = useAuthStore((s) => s.role);
+  const navigate = useNavigate();
   const [clients, setClients] = useState<ClientDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -86,14 +88,25 @@ export function ClientListPage() {
                   </TR>
                 ))
               : filtered.map((client) => (
-                  <TR key={client.id}>
+                  <TR
+                    key={client.id}
+                    onClick={() => navigate(`/admin/clients/${client.id}`)}
+                    className="cursor-pointer"
+                  >
                     <TD className="font-medium text-ink">{client.name}</TD>
                     <TD>
                       <div>{client.contactName}</div>
                       <div className="text-xs text-ink/40">{client.contactEmail}</div>
                     </TD>
                     <TD>
-                      <StatusBadge status={client.status} />
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={client.status} />
+                        {isEngagementExpired(client) && (
+                          <span title="Engagement end date has passed">
+                            <AlertTriangle className="h-3.5 w-3.5 text-orange-600" />
+                          </span>
+                        )}
+                      </div>
                     </TD>
                     <TD>
                       {client.contractStartDate?.toDate().toLocaleDateString()}
@@ -104,7 +117,7 @@ export function ClientListPage() {
                     {currentRole === "executiveAdmin" && (
                       <TD>USD {(client.servicePrice ?? client.agencyFee)?.toLocaleString()}</TD>
                     )}
-                    <TD className="text-right space-x-3">
+                    <TD className="text-right space-x-3" onClick={(e) => e.stopPropagation()}>
                       {currentRole === "executiveAdmin" && (
                         <Link
                           to={`/admin/clients/${client.id}/preview`}

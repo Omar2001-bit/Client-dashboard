@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { KPICard } from "@/components/ui/KPICard";
@@ -7,12 +7,14 @@ import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Table, THead, TBody, TR, TH, TD, EmptyState, Skeleton } from "@/components/ui";
-import { Users, TrendingUp, FlaskConical, Plus } from "lucide-react";
+import { Users, TrendingUp, FlaskConical, Plus, AlertTriangle } from "lucide-react";
+import { isEngagementExpired } from "@/lib/clientEngagement";
 import type { ClientDoc } from "@/types";
 
 export function AdminHomePage() {
   const [clients, setClients] = useState<ClientDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getDocs(query(collection(db, "clients")))
@@ -87,14 +89,25 @@ export function AdminHomePage() {
                     </TR>
                   ))
                 : clients.map((client) => (
-                    <TR key={client.id}>
+                    <TR
+                      key={client.id}
+                      onClick={() => navigate(`/admin/clients/${client.id}`)}
+                      className="cursor-pointer"
+                    >
                       <TD className="font-medium text-ink">{client.name}</TD>
                       <TD>{client.contactEmail}</TD>
                       <TD>
-                        <StatusBadge status={client.status} />
+                        <div className="flex items-center gap-1.5">
+                          <StatusBadge status={client.status} />
+                          {isEngagementExpired(client) && (
+                            <span title="Engagement end date has passed">
+                              <AlertTriangle className="h-3.5 w-3.5 text-orange-600" />
+                            </span>
+                          )}
+                        </div>
                       </TD>
                       <TD>{client.contractStartDate?.toDate().toLocaleDateString()}</TD>
-                      <TD className="text-right">
+                      <TD className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Link
                           to={`/admin/clients/${client.id}`}
                           className="text-xs font-medium text-brand-600 hover:underline"
