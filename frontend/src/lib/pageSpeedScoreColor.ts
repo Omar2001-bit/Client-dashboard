@@ -31,6 +31,18 @@ export function vitalColor(metric: string, value: number | null): string {
   return "text-ink/60";
 }
 
+/** Hex counterpart of vitalColor(), for border/ring styling (same pattern as scoreColor/scoreRingColor). */
+export function vitalRingColor(metric: string, value: number | null): string {
+  if (value == null) return "#94a3b8";
+  if (metric === "lcp") return value <= 2500 ? "#0cce6b" : value <= 4000 ? "#ffa400" : "#ff4e42";
+  if (metric === "fcp") return value <= 1800 ? "#0cce6b" : value <= 3000 ? "#ffa400" : "#ff4e42";
+  if (metric === "cls") return value <= 0.1 ? "#0cce6b" : value <= 0.25 ? "#ffa400" : "#ff4e42";
+  if (metric === "tbt") return value <= 200 ? "#0cce6b" : value <= 600 ? "#ffa400" : "#ff4e42";
+  if (metric === "inp") return value <= 200 ? "#0cce6b" : value <= 500 ? "#ffa400" : "#ff4e42";
+  if (metric === "si") return value <= 3400 ? "#0cce6b" : value <= 5800 ? "#ffa400" : "#ff4e42";
+  return "#64748b";
+}
+
 export function formatMs(ms: number | null): string {
   if (ms == null) return "—";
   if (ms < 1000) return `${Math.round(ms)} ms`;

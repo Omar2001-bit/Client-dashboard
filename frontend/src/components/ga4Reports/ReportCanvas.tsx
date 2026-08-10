@@ -425,7 +425,7 @@ export default function ReportCanvas({
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 pr-8">
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/50">Graph view</h2>
               <div className="flex max-w-full flex-wrap items-center gap-2 overflow-x-auto">
-                {config.rangeB.preset !== "none" && (
+                {config.rangeB.preset !== "none" && (chartType === "line" || chartType === "area" || chartType === "bar") && (
                   <div className="flex w-max overflow-hidden rounded-lg border border-ink/15">
                     {(
                       [

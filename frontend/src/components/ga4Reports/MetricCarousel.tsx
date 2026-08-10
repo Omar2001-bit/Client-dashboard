@@ -80,65 +80,65 @@ function MetricSlide({
 
   return (
     <div className="animate-fade-in w-full">
-      <div className="rounded-xl border border-ink/10 bg-white p-4">
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-ink/50">
-                {index + 1} / {total}
-              </span>
-              <h3 className="truncate text-sm font-semibold text-ink">{metricLabel(metric, metricsMeta)}</h3>
-            </div>
-            {data && (
-              <div className="mt-0.5 flex flex-wrap items-baseline gap-2 text-xs tabular-nums">
-                <span className="font-semibold text-ink">
-                  {fmtValue(data.totalsA[0] ?? 0, type, data.currencyCode)}
-                </span>
-                {data.totalsB && (
-                  <>
-                    <span style={{ color: INK_MUTED }}>
-                      vs {fmtValue(data.totalsB[0] ?? 0, type, data.currencyCode)}
-                    </span>
-                    {headlineDelta !== null && (
-                      <span style={{ color: headlineGood || headlineDelta === 0 ? DELTA_UP : DELTA_DOWN }} className="font-semibold">
-                        {fmtDelta(headlineDelta)}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink/50">
+              {index + 1} / {total}
+            </span>
+            <h3 className="truncate text-sm font-semibold text-ink">{metricLabel(metric, metricsMeta)}</h3>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-            <div className="flex overflow-hidden rounded-lg border border-ink/15">
-              {TIME_VIEWS.map((tv) => (
-                <button
-                  key={tv.value}
-                  type="button"
-                  onClick={() => onDimsChange(granularityDims(tv.value))}
-                  aria-pressed={activeGranularity === tv.value}
-                  className={`focus-ring whitespace-nowrap px-2.5 py-1.5 text-[11px] transition-colors duration-150 ${
-                    activeGranularity === tv.value
-                      ? "bg-brand-500 text-ink-deep"
-                      : "text-ink/50 hover:bg-ink/5 hover:text-ink/70"
-                  }`}
-                >
-                  {tv.label}
-                </button>
-              ))}
+          {data && (
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-2 text-xs tabular-nums">
+              <span className="font-semibold text-ink">
+                {fmtValue(data.totalsA[0] ?? 0, type, data.currencyCode)}
+              </span>
+              {data.totalsB && (
+                <>
+                  <span style={{ color: INK_MUTED }}>
+                    vs {fmtValue(data.totalsB[0] ?? 0, type, data.currencyCode)}
+                  </span>
+                  {headlineDelta !== null && (
+                    <span style={{ color: headlineGood || headlineDelta === 0 ? DELTA_UP : DELTA_DOWN }} className="font-semibold">
+                      {fmtDelta(headlineDelta)}
+                    </span>
+                  )}
+                </>
+              )}
             </div>
-            <div className="w-full min-w-[11.5rem] flex-1 sm:w-48 sm:flex-none">
-              <MetaPicker
-                items={metadata?.dimensions ?? []}
-                selected={activeGranularity ? [] : dims}
-                onToggle={(d) => onDimsChange(dims.includes(d) ? [] : [d])}
-                max={1}
-                placeholder="Or break down by…"
-                allowNone
-              />
-            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+          <div className="flex overflow-hidden rounded-lg border border-ink/15">
+            {TIME_VIEWS.map((tv) => (
+              <button
+                key={tv.value}
+                type="button"
+                onClick={() => onDimsChange(granularityDims(tv.value))}
+                aria-pressed={activeGranularity === tv.value}
+                className={`focus-ring whitespace-nowrap px-2.5 py-1.5 text-[11px] transition-colors duration-150 ${
+                  activeGranularity === tv.value
+                    ? "bg-brand-500 text-ink-deep"
+                    : "text-ink/50 hover:bg-ink/5 hover:text-ink/70"
+                }`}
+              >
+                {tv.label}
+              </button>
+            ))}
+          </div>
+          <div className="w-full min-w-[11.5rem] flex-1 sm:w-48 sm:flex-none">
+            <MetaPicker
+              items={metadata?.dimensions ?? []}
+              selected={activeGranularity ? [] : dims}
+              onToggle={(d) => onDimsChange(dims.includes(d) ? [] : [d])}
+              max={1}
+              placeholder="Or break down by…"
+              allowNone
+            />
           </div>
         </div>
+      </div>
+      <div className="rounded-xl border border-ink/10 bg-white p-4">
         <div className="relative">
           {isLoading && (
             <div className="animate-fade-in absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70 text-xs" style={{ color: INK_MUTED }}>

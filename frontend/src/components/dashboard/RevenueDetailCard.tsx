@@ -1,7 +1,7 @@
 import { Card, CardBody } from "@/components/ui/Card";
 import { formatDateLabel, type DailyRevenuePoint } from "@/lib/dashboardMetrics";
 
-export function RevenueDetailCard({ data, money }: { data: DailyRevenuePoint; money: Intl.NumberFormat }) {
+export function RevenueDetailCard({ data, money, pinned }: { data: DailyRevenuePoint; money: Intl.NumberFormat; pinned?: boolean }) {
   const totalRevenue = data.revenue;
   const breakdown = data.breakdown ?? [];
   const hasBreakdown = breakdown.length > 0;
@@ -11,7 +11,7 @@ export function RevenueDetailCard({ data, money }: { data: DailyRevenuePoint; mo
       <CardBody className="px-5 py-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">Selected Date</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">{pinned ? "Pinned Date" : "Selected Date"}</p>
             <p className="mt-1 text-lg font-bold text-ink">{formatDateLabel(data.date)}</p>
           </div>
           <div className="text-right">

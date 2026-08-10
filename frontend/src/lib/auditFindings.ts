@@ -95,7 +95,7 @@ const severityRank: Record<AuditSeverity, number> = {
   Correct: 4,
 };
 
-export type AuditFindingSortKey = "severity" | "tool" | "progress";
+export type AuditFindingSortKey = "severity" | "tool" | "sourceTab" | "progress";
 
 export function sortFindings(findings: AuditFindingDoc[], sortKey: AuditFindingSortKey): AuditFindingDoc[] {
   const sorted = [...findings];
@@ -103,6 +103,8 @@ export function sortFindings(findings: AuditFindingDoc[], sortKey: AuditFindingS
     sorted.sort((a, b) => severityRank[a.auditStatus] - severityRank[b.auditStatus]);
   } else if (sortKey === "tool") {
     sorted.sort((a, b) => a.tool.localeCompare(b.tool) || a.sourceTab.localeCompare(b.sourceTab));
+  } else if (sortKey === "sourceTab") {
+    sorted.sort((a, b) => a.sourceTab.localeCompare(b.sourceTab) || a.tool.localeCompare(b.tool));
   } else {
     sorted.sort((a, b) => a.progressStatus.localeCompare(b.progressStatus));
   }

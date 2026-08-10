@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ListChecks } from "lucide-react";
 import { KPICard } from "@/components/ui/KPICard";
+import { Select } from "@/components/ui/Select";
 import { AuditFindingFilters } from "@/components/auditFindings/AuditFindingFilters";
 import { AuditFindingList } from "@/components/auditFindings/AuditFindingList";
 import { AuditFindingDetail } from "@/components/auditFindings/AuditFindingDetail";
@@ -9,7 +10,13 @@ import { useAuditFindings } from "@/hooks/useAuditFindings";
 import { useAuthStore } from "@/store/authStore";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
 import { track } from "@/lib/activityTracker";
-import { defaultAuditFindingFilters, filterFindings, isVisibleToClient } from "@/lib/auditFindings";
+import {
+  defaultAuditFindingFilters,
+  filterFindings,
+  isVisibleToClient,
+  sortFindings,
+  type AuditFindingSortKey,
+} from "@/lib/auditFindings";
 
 export function AuditFindingsPage() {
   const clientId = useAuthStore((s) => s.clientId);
@@ -18,12 +25,14 @@ export function AuditFindingsPage() {
   useScrollDepth();
 
   const [filters, setFilters] = useState(defaultAuditFindingFilters);
+  const [sortKey, setSortKey] = useState<AuditFindingSortKey>("severity");
   const [businessMode, setBusinessMode] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("findingId");
 
   const visible = useMemo(() => findings.filter(isVisibleToClient), [findings]);
   const filtered = useMemo(() => filterFindings(visible, filters, "client"), [visible, filters]);
+  const sorted = useMemo(() => sortFindings(filtered, sortKey), [filtered, sortKey]);
   const selected = visible.find((f) => f.id === selectedId) ?? null;
 
   const fixedCount = visible.filter((f) => f.progressStatus === "fixed").length;
@@ -67,7 +76,19 @@ export function AuditFindingsPage() {
         <KPICard title="Completion" value={total > 0 ? `${Math.round((fixedCount / total) * 100)}%` : "—"} />
       </div>
 
-      <AuditFindingFilters findings={visible} filters={filters} onChange={handleFilterChange} mode="client" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <AuditFindingFilters findings={visible} filters={filters} onChange={handleFilterChange} mode="client" />
+        <Select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as AuditFindingSortKey)}
+          className="sm:w-48"
+        >
+          <option value="severity">Sort by severity</option>
+          <option value="sourceTab">Sort by tab</option>
+          <option value="tool">Sort by tool</option>
+          <option value="progress">Sort by progress</option>
+        </Select>
+      </div>
 
       <div
         className="grid grid-cols-1 lg:grid-cols-[380px_1fr] rounded-brand border border-ink/10 bg-white overflow-hidden"
@@ -75,7 +96,7 @@ export function AuditFindingsPage() {
         data-tutorial="audit-findings-list"
       >
         <div className="border-b lg:border-b-0 lg:border-r border-ink/10 h-full min-h-0">
-          <AuditFindingList findings={filtered} selectedId={selectedId} onSelect={handleSelect} businessMode={businessMode} />
+          <AuditFindingList findings={sorted} selectedId={selectedId} onSelect={handleSelect} businessMode={businessMode} />
         </div>
         <AuditFindingDetail
           key={selected?.id}

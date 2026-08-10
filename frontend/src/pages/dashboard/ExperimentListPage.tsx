@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, EyeOff, Eye, StickyNote } from "lucide-react";
+import { Search, EyeOff, Eye, StickyNote, ArrowUp, ArrowDown } from "lucide-react";
 import { track } from "@/lib/activityTracker";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
 import {
@@ -38,6 +38,7 @@ export function ExperimentListPage() {
   const { prefs, toggleExclude } = useClientPreferences(clientId);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [toggling, setToggling] = useState<string | null>(null);
   useScrollDepth();
@@ -89,13 +90,14 @@ export function ExperimentListPage() {
   }, [data?.experiments, overrides, settings.manualExperiments]);
 
   const filtered = useMemo(() => {
+    const dir = sortDir === "asc" ? -1 : 1;
     return [...processedExperiments]
       .filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
-        if (isMetricKey(sortKey)) return (b.uplifts?.[sortKey]?.uplift ?? 0) - (a.uplifts?.[sortKey]?.uplift ?? 0);
-        return String(a[sortKey]).localeCompare(String(b[sortKey]));
+        if (isMetricKey(sortKey)) return dir * ((b.uplifts?.[sortKey]?.uplift ?? 0) - (a.uplifts?.[sortKey]?.uplift ?? 0));
+        return dir * String(a[sortKey]).localeCompare(String(b[sortKey]));
       });
-  }, [processedExperiments, search, sortKey]);
+  }, [processedExperiments, search, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages - 1);
@@ -127,28 +129,44 @@ export function ExperimentListPage() {
             className="pl-9"
           />
         </div>
-        <Select
-          data-tutorial="experiments-sort"
-          value={sortKey}
-          onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(0); track({ type: "sort_change", metadata: { sortKey: e.target.value } }); }}
-          className="sm:w-56"
-        >
-          <option value="revenue">Sort by revenue</option>
-          <option value="rpv">Sort by RPV</option>
-          <option value="purchases">Sort by purchases</option>
-          <option value="products">Sort by products</option>
-          <option value="cvr">Sort by CVR</option>
-          <option value="aov">Sort by AOV</option>
-          <option value="name">Sort by name</option>
-          <option value="status">Sort by status</option>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select
+            data-tutorial="experiments-sort"
+            value={sortKey}
+            onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(0); track({ type: "sort_change", metadata: { sortKey: e.target.value } }); }}
+            className="sm:w-56"
+          >
+            <option value="revenue">Sort by revenue</option>
+            <option value="rpv">Sort by RPV</option>
+            <option value="purchases">Sort by purchases</option>
+            <option value="products">Sort by products</option>
+            <option value="cvr">Sort by CVR</option>
+            <option value="aov">Sort by AOV</option>
+            <option value="name">Sort by name</option>
+            <option value="status">Sort by status</option>
+          </Select>
+          <button
+            type="button"
+            onClick={() => {
+              const next = sortDir === "asc" ? "desc" : "asc";
+              setSortDir(next);
+              setPage(0);
+              track({ type: "sort_change", metadata: { sortKey, sortDir: next } });
+            }}
+            title={sortDir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+            aria-label="Toggle sort direction"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/10 bg-white text-ink/60 transition-colors hover:bg-ink/5 hover:text-ink"
+          >
+            {sortDir === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
         <div data-tutorial="experiments-table" className="overflow-x-auto">
           <Table className="table-fixed">
             <colgroup>
-              <col />
+              <col className="w-[220px]" />
               <col className="w-[120px]" />
               <col className="w-[140px]" />
               <col className="w-[120px]" />
@@ -160,8 +178,8 @@ export function ExperimentListPage() {
             </colgroup>
             <THead>
               <TR className="bg-ink/[0.02] hover:bg-transparent">
-                <TH>Experiment</TH>
-                <TH>Status</TH>
+                <TH className="whitespace-nowrap">Experiment</TH>
+                <TH className="whitespace-nowrap">Status</TH>
                 <TH>Revenue</TH>
                 <TH>RPV</TH>
                 <TH>Purchases</TH>

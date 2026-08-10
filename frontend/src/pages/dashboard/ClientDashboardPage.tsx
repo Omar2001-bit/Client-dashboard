@@ -47,6 +47,12 @@ interface Props {
   preview?: boolean;
 }
 
+// Recharts' onMouseMove/onClick chart-level handlers pass a CategoricalChartState whose
+// exact shape isn't exported in a convenient form; this covers only the fields we read.
+interface RechartsMouseState {
+  activePayload?: { payload: DailyRevenuePoint }[];
+}
+
 const chartColors = ["#6ae499", "#d94444", "#162a3d"];
 
 export function ClientDashboardPage({ preview = false }: Props) {
@@ -225,12 +231,20 @@ export function ClientDashboardPage({ preview = false }: Props) {
     return dataMax / (dataMax - dataMin);
   }, [revenueSeriesWithBreakdown]);
 
-  const [selectedRevenuePoint, setSelectedRevenuePoint] = useState<DailyRevenuePoint | null>(null);
-  const activeRevenuePoint = selectedRevenuePoint ?? revenueSeriesWithBreakdown[0] ?? null;
+  const [pinnedRevenuePoint, setPinnedRevenuePoint] = useState<DailyRevenuePoint | null>(null);
+  const [hoveredRevenuePoint, setHoveredRevenuePoint] = useState<DailyRevenuePoint | null>(null);
+  const activeRevenuePoint = hoveredRevenuePoint ?? pinnedRevenuePoint ?? revenueSeriesWithBreakdown[0] ?? null;
+  const isPinned = !hoveredRevenuePoint && !!pinnedRevenuePoint;
 
-  const handleChartMouseMove = useCallback((state: any) => {
+  const handleChartMouseMove = useCallback((state: RechartsMouseState) => {
     if (state?.activePayload?.[0]?.payload) {
-      setSelectedRevenuePoint(state.activePayload[0].payload);
+      setHoveredRevenuePoint(state.activePayload[0].payload);
+    }
+  }, []);
+
+  const handleChartClick = useCallback((state: RechartsMouseState) => {
+    if (state?.activePayload?.[0]?.payload) {
+      setPinnedRevenuePoint(state.activePayload[0].payload);
     }
   }, []);
 
@@ -398,10 +412,12 @@ export function ClientDashboardPage({ preview = false }: Props) {
               <AreaChart
                 data={revenueSeriesWithBreakdown}
                 onMouseMove={handleChartMouseMove}
+                onClick={handleChartClick}
                 onMouseLeave={() => {
-                  if (selectedRevenuePoint) {
-                    track({ type: "chart_date_hover", metadata: { date: selectedRevenuePoint.date, revenue: selectedRevenuePoint.revenue, breakdownCount: selectedRevenuePoint.breakdown?.length ?? 0 } });
+                  if (hoveredRevenuePoint) {
+                    track({ type: "chart_date_hover", metadata: { date: hoveredRevenuePoint.date, revenue: hoveredRevenuePoint.revenue, breakdownCount: hoveredRevenuePoint.breakdown?.length ?? 0 } });
                   }
+                  setHoveredRevenuePoint(null);
                 }}
               >
                 <defs>
@@ -435,6 +451,15 @@ export function ClientDashboardPage({ preview = false }: Props) {
                   width={70}
                 />
                 <ReferenceLine y={0} stroke="#162a3d" strokeOpacity={0.2} />
+                {pinnedRevenuePoint && (
+                  <ReferenceLine
+                    x={pinnedRevenuePoint.date}
+                    stroke="#162a3d"
+                    strokeOpacity={0.35}
+                    strokeDasharray="3 3"
+                    ifOverflow="extendDomain"
+                  />
+                )}
                 <Tooltip content={() => null} cursor={{ stroke: "#162a3d", strokeOpacity: 0.15, strokeDasharray: "4 4" }} />
                 <Area
                   type="monotone"
@@ -451,7 +476,7 @@ export function ClientDashboardPage({ preview = false }: Props) {
         </Card>
 
         {activeRevenuePoint && (
-          <RevenueDetailCard data={activeRevenuePoint} money={money} />
+          <RevenueDetailCard data={activeRevenuePoint} money={money} pinned={isPinned} />
         )}
 
         <Card>

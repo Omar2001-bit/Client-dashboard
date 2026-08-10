@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, ArrowLeft, RefreshCw } from "lucide-react";
+import { BarChart3, ArrowLeft, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 import { useGA4Data } from "@/hooks/useGA4Data";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { track } from "@/lib/activityTracker";
@@ -18,6 +18,7 @@ import {
   EmptyState,
   Skeleton,
   KPICard,
+  Select,
 } from "@/components/ui";
 import { useAuthStore } from "@/store/authStore";
 import { formatSignedDecimal, formatSignedMoney, formatSignedNumber } from "@/lib/experimentFormatting";
@@ -37,6 +38,12 @@ function formatDateRange(startDate: string, endDate: string): string {
 
 function roundMetric(v: number): number {
   return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
+}
+
+const metricKeys: ExperimentMetricKey[] = ["revenue", "rpv", "purchases", "products", "cvr", "aov"];
+type SortKey = ExperimentMetricKey | "name" | "status";
+function isMetricKey(value: SortKey): value is ExperimentMetricKey {
+  return metricKeys.includes(value as ExperimentMetricKey);
 }
 
 export function GA4DashboardPage() {
@@ -94,6 +101,17 @@ export function GA4DashboardPage() {
       count,
     };
   }, [experiments]);
+
+  const [sortKey, setSortKey] = useState<SortKey>("revenue");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const sortedExperiments = useMemo(() => {
+    const dir = sortDir === "asc" ? -1 : 1;
+    return [...experiments].sort((a, b) => {
+      if (isMetricKey(sortKey)) return dir * ((b.uplifts?.[sortKey]?.uplift ?? 0) - (a.uplifts?.[sortKey]?.uplift ?? 0));
+      return dir * String(a[sortKey]).localeCompare(String(b[sortKey]));
+    });
+  }, [experiments, sortKey, sortDir]);
 
   const money = useMemo(
     () => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
@@ -194,9 +212,36 @@ export function GA4DashboardPage() {
             />
           ) : (
             <div className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-ink/40">
-                Experiments ({experiments.length})
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-ink/40">
+                  Experiments ({experiments.length})
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={sortKey}
+                    onChange={(e) => setSortKey(e.target.value as SortKey)}
+                    className="sm:w-56"
+                  >
+                    <option value="revenue">Sort by revenue</option>
+                    <option value="rpv">Sort by RPV</option>
+                    <option value="purchases">Sort by purchases</option>
+                    <option value="products">Sort by products</option>
+                    <option value="cvr">Sort by CVR</option>
+                    <option value="aov">Sort by AOV</option>
+                    <option value="name">Sort by name</option>
+                    <option value="status">Sort by status</option>
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                    title={sortDir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+                    aria-label="Toggle sort direction"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/10 bg-white text-ink/60 transition-colors hover:bg-ink/5 hover:text-ink"
+                  >
+                    {sortDir === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
               <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
                 <div className="overflow-x-auto">
                   <Table className="table-fixed">
@@ -223,7 +268,7 @@ export function GA4DashboardPage() {
                       </TR>
                     </THead>
                     <TBody>
-                      {experiments.map((experiment) => (
+                      {sortedExperiments.map((experiment) => (
                         <TR key={experiment.experimentId}>
                           <TD className="font-medium text-ink">
                             <span className="block truncate">{experiment.name}</span>

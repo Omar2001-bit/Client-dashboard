@@ -18,7 +18,7 @@ import {
   metricUnitForKey,
   toHumanLabel,
 } from "@/lib/pageSpeedMetrics";
-import { scoreColor, scoreBarColor, vitalColor, formatMs, formatCls } from "@/lib/pageSpeedScoreColor";
+import { scoreColor, scoreBarColor, vitalColor, vitalRingColor, formatMs, formatCls } from "@/lib/pageSpeedScoreColor";
 import { ScoreGauge } from "@/components/pageSpeed/ScoreGauge";
 import { ScoreBadge } from "@/components/pageSpeed/ScoreBadge";
 import {
@@ -136,11 +136,26 @@ export function PageSpeedPage() {
   const [liveStatus, setLiveStatus] = useState<string>("");
   const [metricAverages, setMetricAverages] = useState<Record<string, number>>({});
   const [auditScoreAverages, setAuditScoreAverages] = useState<Record<string, number>>({});
+  const [highlightedVitalKey, setHighlightedVitalKey] = useState<string | null>(null);
 
   // Guard: prevents stale Firestore reads from resetting `loading` to false
   // during the window between clicking "Run Report" and the server writing
   // the new run's status: "running" to Firestore (can take 1-3 seconds).
   const runInitiatedRef = useRef(false);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    };
+  }, []);
+
+  const handleVitalCardClick = useCallback((key: string) => {
+    document.getElementById(`metric-explain-${key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedVitalKey(key);
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = setTimeout(() => setHighlightedVitalKey(null), 2000);
+  }, []);
 
   // Load client websiteUrl from Firestore
   useEffect(() => {
@@ -479,19 +494,19 @@ export function PageSpeedPage() {
             Analyze page performance across your entire site using Google PageSpeed Insights.
           </p>
         </div>
-        <div className="flex items-center gap-3" data-tutorial="page-speed-controls">
+        <div className="flex flex-wrap items-center gap-3" data-tutorial="page-speed-controls">
           {/* Strategy Toggle */}
-          <div className="inline-flex overflow-hidden rounded-lg border border-ink/10 bg-white text-sm font-medium shadow-sm">
+          <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-ink/10 bg-white text-sm font-medium shadow-sm">
             <button
               onClick={() => { setStrategy("mobile"); track({ type: "pagespeed_strategy_change", metadata: { strategy: "mobile" } }); }}
-              className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${strategy === "mobile" ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
+              className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2 transition-colors ${strategy === "mobile" ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
             >
               <Smartphone className="h-4 w-4" />
               Mobile
             </button>
             <button
               onClick={() => { setStrategy("desktop"); track({ type: "pagespeed_strategy_change", metadata: { strategy: "desktop" } }); }}
-              className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${strategy === "desktop" ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
+              className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2 transition-colors ${strategy === "desktop" ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
             >
               <Monitor className="h-4 w-4" />
               Desktop
@@ -629,13 +644,19 @@ export function PageSpeedPage() {
                 {VITAL_METRICS.map(({ key, label, fullLabel, description, unit }) => {
                   const value = averages[key as keyof typeof averages];
                   return (
-                    <div key={key} className="rounded-xl border border-ink/10 bg-ink/[0.01] p-4 text-center">
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleVitalCardClick(key)}
+                      style={{ borderLeftColor: vitalRingColor(key, value), borderLeftWidth: 4 }}
+                      className="cursor-pointer rounded-xl border border-ink/10 bg-ink/[0.01] p-4 text-center transition-colors hover:bg-ink/[0.03]"
+                    >
                       <p className="text-[10px] font-bold uppercase tracking-widest text-ink/35">{label}</p>
                       <p className={`mt-1 text-xl font-bold ${vitalColor(key, value)}`}>
                         {formatMetricValue(value, unit)}
                       </p>
                       <p className="mt-1 text-[10px] text-ink/30" title={description}>{fullLabel}</p>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -649,18 +670,34 @@ export function PageSpeedPage() {
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {[...SCORE_METRICS, ...VITAL_METRICS].map((metric) => (
-                  <div key={metric.key} className="rounded-xl border border-ink/10 bg-white p-4">
-                    <div className="flex items-center gap-2">
-                      <metric.icon className="h-4 w-4 text-ink/35" />
-                      <p className="text-sm font-semibold text-ink">{metric.fullLabel}</p>
-                      <span className="rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink/35">
-                        {metric.lowerIsBetter ? "lower is better" : "higher is better"}
-                      </span>
+                {[...SCORE_METRICS, ...VITAL_METRICS].map((metric) => {
+                  const isHighlighted = highlightedVitalKey === metric.key;
+                  const value = averages?.[metric.key as keyof typeof averages] ?? null;
+                  return (
+                    <div
+                      key={metric.key}
+                      id={`metric-explain-${metric.key}`}
+                      style={
+                        isHighlighted
+                          ? {
+                              borderColor: vitalRingColor(metric.key, value),
+                              boxShadow: `0 0 0 2px ${vitalRingColor(metric.key, value)}33`,
+                            }
+                          : undefined
+                      }
+                      className="rounded-xl border border-ink/10 bg-white p-4 transition-shadow"
+                    >
+                      <div className="flex items-center gap-2">
+                        <metric.icon className="h-4 w-4 text-ink/35" />
+                        <p className="text-sm font-semibold text-ink">{metric.fullLabel}</p>
+                        <span className="rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink/35">
+                          {metric.lowerIsBetter ? "lower is better" : "higher is better"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-relaxed text-ink/55">{metric.description}</p>
                     </div>
-                    <p className="mt-2 text-xs leading-relaxed text-ink/55">{metric.description}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardBody>
           </Card>
