@@ -13,7 +13,7 @@ export function ClickUpTasksPage() {
   const clientId = useAuthStore((s) => s.clientId);
   const authLoading = useAuthStore((s) => s.loading);
   const { timeline, loaded, error } = useClientTimeline(clientId);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<ClickUpTaskNode | null>(null);
 
   const listGroups = useMemo(
@@ -22,14 +22,9 @@ export function ClickUpTasksPage() {
   );
 
   const toggleExpanded = (id: string, groupName: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      const expanding = !next.has(id);
-      if (expanding) next.add(id);
-      else next.delete(id);
-      track({ type: "clickup_group_toggle", metadata: { source: "project_tasks", groupName, action: expanding ? "expand" : "collapse" } });
-      return next;
-    });
+    const expanding = expandedId !== id;
+    setExpandedId(expanding ? id : null);
+    track({ type: "clickup_group_toggle", metadata: { source: "project_tasks", groupName, action: expanding ? "expand" : "collapse" } });
   };
 
   const handleSelectTask = (task: ClickUpTaskNode) => {
@@ -64,7 +59,7 @@ export function ClickUpTasksPage() {
         ) : (
           listGroups.map((group) => {
             const taskCount = countTaskNodes(group.tasks);
-            const expanded = expandedIds.has(group.id);
+            const expanded = expandedId === group.id;
             return (
               <Card key={group.id}>
                 <CardHeader

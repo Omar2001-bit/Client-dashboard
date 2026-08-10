@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Search, RefreshCw } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 import { useGA4Data } from "@/hooks/useGA4Data";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { track } from "@/lib/activityTracker";
@@ -45,6 +45,7 @@ export function GA4ExperimentsPage() {
   const clientId = useAuthStore((s) => s.clientId);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
 
   const { data, isLoading, error, refetch, isFetching } = useGA4Data();
@@ -79,14 +80,15 @@ export function GA4ExperimentsPage() {
   }, [data?.experiments, overrides]);
 
   const filtered = useMemo(() => {
+    const dir = sortDir === "asc" ? -1 : 1;
     return [...processedExperiments]
       .filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
-        if (isMetricKey(sortKey)) return (b.uplifts?.[sortKey]?.uplift ?? 0) - (a.uplifts?.[sortKey]?.uplift ?? 0);
-        if (sortKey === "status") return a.status.localeCompare(b.status);
-        return a.name.localeCompare(b.name);
+        if (isMetricKey(sortKey)) return dir * ((b.uplifts?.[sortKey]?.uplift ?? 0) - (a.uplifts?.[sortKey]?.uplift ?? 0));
+        if (sortKey === "status") return dir * a.status.localeCompare(b.status);
+        return dir * a.name.localeCompare(b.name);
       });
-  }, [processedExperiments, search, sortKey]);
+  }, [processedExperiments, search, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages - 1);
@@ -144,20 +146,31 @@ export function GA4ExperimentsPage() {
                 className="pl-9"
               />
             </div>
-            <Select
-              value={sortKey}
-              onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(0); }}
-              className="sm:w-56"
-            >
-              <option value="revenue">Sort by revenue</option>
-              <option value="rpv">Sort by RPV</option>
-              <option value="purchases">Sort by purchases</option>
-              <option value="products">Sort by products</option>
-              <option value="cvr">Sort by CVR</option>
-              <option value="aov">Sort by AOV</option>
-              <option value="name">Sort by name</option>
-              <option value="status">Sort by status</option>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={sortKey}
+                onChange={(e) => { setSortKey(e.target.value as SortKey); setPage(0); }}
+                className="sm:w-56"
+              >
+                <option value="revenue">Sort by revenue</option>
+                <option value="rpv">Sort by RPV</option>
+                <option value="purchases">Sort by purchases</option>
+                <option value="products">Sort by products</option>
+                <option value="cvr">Sort by CVR</option>
+                <option value="aov">Sort by AOV</option>
+                <option value="name">Sort by name</option>
+                <option value="status">Sort by status</option>
+              </Select>
+              <button
+                type="button"
+                onClick={() => { setSortDir((d) => (d === "asc" ? "desc" : "asc")); setPage(0); }}
+                title={sortDir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+                aria-label="Toggle sort direction"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/10 bg-white text-ink/60 transition-colors hover:bg-ink/5 hover:text-ink"
+              >
+                {sortDir === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -165,7 +178,7 @@ export function GA4ExperimentsPage() {
             <div className="overflow-x-auto">
               <Table className="table-fixed">
                 <colgroup>
-                  <col />
+                  <col className="w-[220px]" />
                   <col className="w-[120px]" />
                   <col className="w-[140px]" />
                   <col className="w-[120px]" />
@@ -176,8 +189,8 @@ export function GA4ExperimentsPage() {
                 </colgroup>
                 <THead>
                   <TR className="bg-ink/[0.02] hover:bg-transparent">
-                    <TH>Experiment</TH>
-                    <TH>Status</TH>
+                    <TH className="whitespace-nowrap">Experiment</TH>
+                    <TH className="whitespace-nowrap">Status</TH>
                     <TH>Revenue</TH>
                     <TH>RPV</TH>
                     <TH>Purchases</TH>

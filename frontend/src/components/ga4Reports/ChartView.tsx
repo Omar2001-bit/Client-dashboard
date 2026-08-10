@@ -411,6 +411,26 @@ export default function ChartView({
     return <TotalsOnlyView data={data} metricIndex={metricIndex} metricsMeta={metricsMeta} />;
   }
 
+  // Timeline was requested but couldn't be built — show why instead of silently falling
+  // back to the overlay chart below (which would render with the Timeline tab still
+  // showing as selected, looking like Timeline "does nothing").
+  if (viewMode === "timeline" && (chartType === "line" || chartType === "area" || chartType === "bar") && !timeline) {
+    const message = !granularity
+      ? "Select a Day/Week/Month breakdown to view the Timeline."
+      : !data.rangeB
+        ? "Add a comparison period to view the Timeline."
+        : "No comparable data available for this period.";
+    return (
+      <div
+        className="animate-fade-in flex h-full min-h-[160px] flex-col items-center justify-center gap-1.5 px-4 text-center text-xs"
+        style={{ color: INK_MUTED }}
+      >
+        <TrendingUp size={18} />
+        {message}
+      </div>
+    );
+  }
+
   // ---- timeline rendering: previous phase (dashed) flows into current (solid) ----
   if (timeline) {
     const tRows = timeline.rows;

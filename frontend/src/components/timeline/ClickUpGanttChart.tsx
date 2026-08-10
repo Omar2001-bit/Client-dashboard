@@ -24,20 +24,15 @@ function flattenNodes(nodes: ClickUpTaskNode[]): ClickUpTaskNode[] {
 }
 
 export function ClickUpGanttChart({ tasks, lists, connected }: Props) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<ClickUpTask | null>(null);
 
   const groups = useMemo(() => groupTasksByList(tasks, lists), [tasks, lists]);
 
   const toggleExpanded = (id: string, groupName: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      const expanding = !next.has(id);
-      if (expanding) next.add(id);
-      else next.delete(id);
-      track({ type: "clickup_group_toggle", metadata: { source: "timeline_gantt", groupName, action: expanding ? "expand" : "collapse" } });
-      return next;
-    });
+    const expanding = expandedId !== id;
+    setExpandedId(expanding ? id : null);
+    track({ type: "clickup_group_toggle", metadata: { source: "timeline_gantt", groupName, action: expanding ? "expand" : "collapse" } });
   };
 
   const handleSelectTask = (task: ClickUpTask) => {
@@ -73,7 +68,7 @@ export function ClickUpGanttChart({ tasks, lists, connected }: Props) {
         <div className="min-w-[920px] space-y-3">
           {groups.map((group) => {
             const flatTasks = flattenNodes(group.tasks);
-            const expanded = expandedIds.has(group.id);
+            const expanded = expandedId === group.id;
             // Own axis per list — earliest start among this list's tasks through today —
             // so bars fill this list's real time window instead of a whole-project range.
             const groupBounds = expanded && flatTasks.length > 0 ? getTaskGanttBounds(flatTasks) : null;

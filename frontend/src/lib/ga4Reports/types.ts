@@ -200,7 +200,7 @@ export interface FunnelResponse {
 // neither has an atomic per-row unit to drag, so both stay whole-section-only draggable.
 // "numbers", "compare", and "insights" are entry containers: any card can move freely
 // between any of the three.
-const SECTION_IDS = ["graph", "numbers", "insights", "funnels", "highlights", "compare"] as const;
+const SECTION_IDS = ["graph", "insights", "numbers", "funnels", "highlights", "compare"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 export const SECTION_TITLES: Record<SectionId, string> = {
