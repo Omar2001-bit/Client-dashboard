@@ -102,14 +102,19 @@ function buildTimelineData(
 ): { rows: Datum[] } | null {
   if (!granularity || !data.rangeB) return null;
   const g = granularity;
+  // previous+current phases share one continuous axis here (unlike Overlay, which never
+  // shows both at once) — so when they land in different calendar years, disambiguate every
+  // label with its year or e.g. two "Jul 2" buckets a year apart look identical
+  const includeYear = data.rangeA.startDate.slice(0, 4) !== data.rangeB.startDate.slice(0, 4);
   const curr = new Map<string, Datum>();
   const prev = new Map<string, Datum>();
   for (const r of data.rows) {
     // rows with an empty current bucket are alignment artifacts (comparison range
     // longer than the current one) — their bDim/b still belongs on the previous phase,
     // but they contribute no current-phase point
-    if (r.dim) curr.set(r.dim, { name: fmtBucketLabel(g, r.dim), key: r.dim, a: r.a[metricIndex] ?? 0 });
-    if (r.bDim && r.b) prev.set(r.bDim, { name: fmtBucketLabel(g, r.bDim), key: r.bDim, b: r.b[metricIndex] ?? 0 });
+    if (r.dim) curr.set(r.dim, { name: fmtBucketLabel(g, r.dim, includeYear), key: r.dim, a: r.a[metricIndex] ?? 0 });
+    if (r.bDim && r.b)
+      prev.set(r.bDim, { name: fmtBucketLabel(g, r.bDim, includeYear), key: r.bDim, b: r.b[metricIndex] ?? 0 });
   }
   if (prev.size === 0 || curr.size === 0) return null;
   const prevRows = [...prev.values()].filter((p) => !curr.has(p.key)).sort((x, y) => (x.key < y.key ? -1 : 1));
@@ -447,21 +452,20 @@ export default function ChartView({
         label={{ value: period.label, position: "insideTopLeft", fill: period.color, fontSize: 10 }}
       />
     ));
-    const shared = (
-      <>
-        <CartesianGrid stroke={GRID} vertical={false} />
-        {tBands}
-        <XAxis dataKey="name" tick={axisTick} stroke={BASELINE} interval="preserveStartEnd" />
-        <YAxis tick={axisTick} tickFormatter={yFmt} stroke={BASELINE} width={48} />
-        <Tooltip content={chartTooltip} cursor={chartType === "bar" ? { fill: HOVER_CURSOR_FILL } : undefined} />
-      </>
-    );
+    // Recharts discovers CartesianGrid/XAxis/YAxis/Tooltip by scanning each chart's direct
+    // children — it won't reach into a Fragment passed as a single indirect child, so these
+    // must be inlined literally in each branch below (matching the Overlay branches further
+    // down) rather than built once as a shared `<>...</>` variable.
     return (
       <div>
         <ResponsiveContainer width="100%" height={height}>
           {chartType === "bar" ? (
             <BarChart data={tRows} margin={{ right: 12 }}>
-              {shared}
+              <CartesianGrid stroke={GRID} vertical={false} />
+              {tBands}
+              <XAxis dataKey="name" tick={axisTick} stroke={BASELINE} interval="preserveStartEnd" />
+              <YAxis tick={axisTick} tickFormatter={yFmt} stroke={BASELINE} width={48} />
+              <Tooltip content={chartTooltip} cursor={{ fill: HOVER_CURSOR_FILL }} />
               <Bar
                 dataKey="b"
                 fill={SERIES_B}
@@ -482,7 +486,11 @@ export default function ChartView({
                   <stop offset="100%" stopColor={SERIES_A} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              {shared}
+              <CartesianGrid stroke={GRID} vertical={false} />
+              {tBands}
+              <XAxis dataKey="name" tick={axisTick} stroke={BASELINE} interval="preserveStartEnd" />
+              <YAxis tick={axisTick} tickFormatter={yFmt} stroke={BASELINE} width={48} />
+              <Tooltip content={chartTooltip} />
               <Area
                 type="monotone"
                 dataKey="b"
@@ -506,7 +514,11 @@ export default function ChartView({
             </AreaChart>
           ) : (
             <LineChart data={tRows} margin={{ right: 12 }}>
-              {shared}
+              <CartesianGrid stroke={GRID} vertical={false} />
+              {tBands}
+              <XAxis dataKey="name" tick={axisTick} stroke={BASELINE} interval="preserveStartEnd" />
+              <YAxis tick={axisTick} tickFormatter={yFmt} stroke={BASELINE} width={48} />
+              <Tooltip content={chartTooltip} />
               <Line
                 type="monotone"
                 dataKey="b"

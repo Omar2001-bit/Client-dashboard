@@ -83,24 +83,26 @@ export function fmtDelta(d: number | null): string {
   return `${sign}${d.toFixed(1)}%`;
 }
 
-/** "20260702" or "2026-07-02" -> "Jul 2" */
-export function fmtDateLabel(raw: string): string {
+/** "20260702" or "2026-07-02" -> "Jul 2" ("Jul 2, 2026" with includeYear — needed wherever a
+ *  single axis/list can show dates from more than one calendar year, e.g. the Timeline graph
+ *  view concatenating a "vs last year" compare, so same month/day pairs don't look identical). */
+export function fmtDateLabel(raw: string, includeYear = false): string {
   const s = raw.replaceAll("-", "");
   if (!/^\d{8}$/.test(s)) return raw;
   const d = new Date(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: includeYear ? "numeric" : undefined });
 }
 
 /** "20260706" -> "Jul 6" for daily; week/month buckets get their own span-based label
  *  ("Jul 6 – Jul 12", "Jul 2026") instead of showing the raw GA4 bucket key ("202628"). */
-export function fmtBucketLabel(g: TimeGranularity, key: string): string {
+export function fmtBucketLabel(g: TimeGranularity, key: string, includeYear = false): string {
   if (!key) return key;
-  if (g === "date") return fmtDateLabel(key);
+  if (g === "date") return fmtDateLabel(key, includeYear);
   const { start, end } = bucketSpan(g, key);
   if (g === "month") {
     return new Date(start + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" });
   }
-  return `${fmtDateLabel(start.replaceAll("-", ""))} – ${fmtDateLabel(end.replaceAll("-", ""))}`;
+  return `${fmtDateLabel(start.replaceAll("-", ""), includeYear)} – ${fmtDateLabel(end.replaceAll("-", ""), includeYear)}`;
 }
 
 /** Human label for a metric/dimension apiName when metadata isn't loaded. */

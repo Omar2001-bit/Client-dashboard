@@ -243,10 +243,10 @@ export function GA4DashboardPage() {
                 </div>
               </div>
               <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
-                <div className="overflow-x-auto">
+                <div className="max-h-[560px] overflow-auto">
                   <Table className="table-fixed">
                     <colgroup>
-                      <col />
+                      <col className="w-[220px]" />
                       <col className="w-[110px]" />
                       <col className="w-[130px]" />
                       <col className="w-[110px]" />
@@ -256,9 +256,9 @@ export function GA4DashboardPage() {
                       <col className="w-[110px]" />
                     </colgroup>
                     <THead>
-                      <TR className="bg-ink/[0.02] hover:bg-transparent">
-                        <TH>Experiment</TH>
-                        <TH>Status</TH>
+                      <TR className="sticky top-0 z-10 bg-white hover:bg-transparent">
+                        <TH className="whitespace-nowrap">Experiment</TH>
+                        <TH className="whitespace-nowrap">Status</TH>
                         <TH>Revenue</TH>
                         <TH>RPV</TH>
                         <TH>Purchases</TH>

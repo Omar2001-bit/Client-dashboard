@@ -27,8 +27,6 @@ import { MetricCell } from "@/components/dashboard/MetricCell";
 import type { ExperimentMetricKey } from "@/types";
 import type { GA4EnrichedExperiment as EnrichedExp } from "@/hooks/useGA4Data";
 
-const PAGE_SIZE = 15;
-
 const metricKeys: ExperimentMetricKey[] = ["revenue", "rpv", "purchases", "products", "cvr", "aov"];
 type SortKey = ExperimentMetricKey | "name" | "status";
 
@@ -47,6 +45,7 @@ export function GA4ExperimentsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading, error, refetch, isFetching } = useGA4Data();
   const { settings } = useDashboardSettings(clientId);
@@ -90,9 +89,9 @@ export function GA4ExperimentsPage() {
       });
   }, [processedExperiments, search, sortKey, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
-  const experiments = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const experiments = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   const currency = "USD";
   const money = useMemo(
@@ -175,7 +174,7 @@ export function GA4ExperimentsPage() {
 
           {/* Table */}
           <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
-            <div className="overflow-x-auto">
+            <div className="max-h-[560px] overflow-auto">
               <Table className="table-fixed">
                 <colgroup>
                   <col className="w-[220px]" />
@@ -188,7 +187,7 @@ export function GA4ExperimentsPage() {
                   <col className="w-[120px]" />
                 </colgroup>
                 <THead>
-                  <TR className="bg-ink/[0.02] hover:bg-transparent">
+                  <TR className="sticky top-0 z-10 bg-white hover:bg-transparent">
                     <TH className="whitespace-nowrap">Experiment</TH>
                     <TH className="whitespace-nowrap">Status</TH>
                     <TH>Revenue</TH>
@@ -201,7 +200,7 @@ export function GA4ExperimentsPage() {
                 </THead>
                 <TBody>
                   {isLoading
-                    ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                    ? Array.from({ length: pageSize }).map((_, i) => (
                         <TR key={i} className="hover:bg-transparent">
                           <TD colSpan={8}>
                             <Skeleton className="h-4" />
@@ -239,12 +238,28 @@ export function GA4ExperimentsPage() {
             )}
 
             {!isLoading && filtered.length > 0 && (
-              <div className="border-t border-ink/10 px-6 py-3">
+              <div className="flex items-center justify-between gap-3 border-t border-ink/10 px-6 py-3">
+                <div className="flex items-center gap-2 text-xs text-ink/50">
+                  <span>Rows per page</span>
+                  <Select
+                    aria-label="Rows per page"
+                    value={String(pageSize)}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(0);
+                    }}
+                    className="h-8 w-[92px] py-1.5 text-xs"
+                  >
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </Select>
+                </div>
                 <Pagination
                   page={currentPage + 1}
                   pageCount={totalPages}
                   total={filtered.length}
-                  pageSize={PAGE_SIZE}
+                  pageSize={pageSize}
                   onPageChange={(p) => setPage(p - 1)}
                 />
               </div>

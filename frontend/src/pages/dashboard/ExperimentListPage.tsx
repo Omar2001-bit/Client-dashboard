@@ -26,7 +26,6 @@ import { formatSignedDecimal, formatSignedMoney, formatSignedNumber } from "@/li
 import { MetricCell } from "@/components/dashboard/MetricCell";
 import type { ExperimentMetricKey, ExperimentSummary } from "@/types";
 
-const PAGE_SIZE = 15;
 const metricKeys: ExperimentMetricKey[] = ["revenue", "rpv", "purchases", "products", "cvr", "aov"];
 type SortKey = ExperimentMetricKey | "name" | "status";
 
@@ -40,6 +39,7 @@ export function ExperimentListPage() {
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [toggling, setToggling] = useState<string | null>(null);
   useScrollDepth();
 
@@ -99,9 +99,9 @@ export function ExperimentListPage() {
       });
   }, [processedExperiments, search, sortKey, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
-  const experiments = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const experiments = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   const handleToggle = async (id: string, name: string) => {
     const isHiding = !clientExcluded.has(id);
@@ -163,7 +163,7 @@ export function ExperimentListPage() {
       </div>
 
       <div className="overflow-hidden rounded-brand border border-ink/10 bg-white">
-        <div data-tutorial="experiments-table" className="overflow-x-auto">
+        <div data-tutorial="experiments-table" className="max-h-[560px] overflow-auto">
           <Table className="table-fixed">
             <colgroup>
               <col className="w-[220px]" />
@@ -177,7 +177,7 @@ export function ExperimentListPage() {
               <col className="w-[140px]" />
             </colgroup>
             <THead>
-              <TR className="bg-ink/[0.02] hover:bg-transparent">
+              <TR className="sticky top-0 z-10 bg-white hover:bg-transparent">
                 <TH className="whitespace-nowrap">Experiment</TH>
                 <TH className="whitespace-nowrap">Status</TH>
                 <TH>Revenue</TH>
@@ -191,7 +191,7 @@ export function ExperimentListPage() {
             </THead>
             <TBody>
               {loading
-                ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                ? Array.from({ length: pageSize }).map((_, i) => (
                     <TR key={i} className="hover:bg-transparent">
                       <TD colSpan={9}>
                         <Skeleton className="h-4" />
@@ -256,12 +256,28 @@ export function ExperimentListPage() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <div className="border-t border-ink/10 px-6 py-3">
+          <div className="flex items-center justify-between gap-3 border-t border-ink/10 px-6 py-3">
+            <div className="flex items-center gap-2 text-xs text-ink/50">
+              <span>Rows per page</span>
+              <Select
+                aria-label="Rows per page"
+                value={String(pageSize)}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(0);
+                }}
+                className="h-8 w-[92px] py-1.5 text-xs"
+              >
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </Select>
+            </div>
             <Pagination
               page={currentPage + 1}
               pageCount={totalPages}
               total={filtered.length}
-              pageSize={PAGE_SIZE}
+              pageSize={pageSize}
               onPageChange={(p) => {
                 setPage(p - 1);
                 track({ type: "list_page_change", metadata: { page: p } });

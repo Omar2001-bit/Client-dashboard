@@ -64,6 +64,8 @@ export default function MetricJumpMenu({ metrics, active, onSelect, metricsMeta 
 
   if (metrics.length < 6) return null; // a search menu adds nothing for a handful of metrics
 
+  const activeLabel = entries[active]?.label ?? "Jump to…";
+
   return (
     <div className="relative">
       <button
@@ -71,13 +73,14 @@ export default function MetricJumpMenu({ metrics, active, onSelect, metricsMeta 
         onClick={() => setOpen((v) => !v)}
         aria-label="Jump to metric"
         aria-expanded={open}
-        className="focus-ring flex h-7 items-center gap-1.5 rounded-lg border border-ink/15 px-2.5 text-[11px] text-ink/50 transition-all duration-150 hover:border-ink/30 hover:text-ink active:scale-95"
+        title={activeLabel}
+        className="focus-ring flex h-7 max-w-[11rem] items-center gap-1.5 rounded-lg border border-ink/15 px-2.5 text-[11px] text-ink/50 transition-all duration-150 hover:border-ink/30 hover:text-ink active:scale-95"
       >
-        <Search size={12} />
-        Jump to…
+        <Search size={12} className="shrink-0" />
+        <span className="truncate">{activeLabel}</span>
         <ChevronDown
           size={11}
-          className="transition-transform duration-150"
+          className="shrink-0 transition-transform duration-150"
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>

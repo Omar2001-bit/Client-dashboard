@@ -78,6 +78,7 @@ function CollapsibleHeader({
   count,
   collapsed,
   onToggle,
+  accent = false,
 }: {
   id: SectionId;
   icon?: ReactNode;
@@ -85,15 +86,16 @@ function CollapsibleHeader({
   count: number;
   collapsed: boolean;
   onToggle: (id: SectionId) => void;
+  accent?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={() => onToggle(id)}
       aria-expanded={!collapsed}
-      className={`focus-ring flex items-center gap-1.5 pr-8 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/50 transition-colors duration-150 hover:text-ink ${
-        collapsed ? "" : "mb-2"
-      }`}
+      className={`focus-ring flex items-center gap-1.5 pr-8 text-[11px] uppercase tracking-[0.14em] transition-colors duration-150 ${
+        accent ? "font-bold text-brand-700 hover:text-brand-800" : "font-semibold text-ink/50 hover:text-ink"
+      } ${collapsed ? "" : "mb-2"}`}
     >
       <ChevronRight
         size={11}
@@ -188,10 +190,9 @@ export default function ReportCanvas({
     setSyncedChartType(config.chartType);
     setChartType(config.chartType);
   }
-  // Insights and Compare metrics start folded — they're the densest blocks, and a
-  // client scanning the report opens them when they want the detail.
+  // Compare metrics start folded — it's the densest block, and a client scanning
+  // the report opens it when they want the detail.
   const [collapsed, setCollapsed] = useState<Partial<Record<SectionId, boolean>>>({
-    insights: true,
     compare: true,
   });
   const toggleCollapsed = (id: SectionId) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
@@ -527,6 +528,7 @@ export default function ReportCanvas({
               count={block.entries?.length ?? 0}
               collapsed={!!collapsed.insights}
               onToggle={toggleCollapsed}
+              accent
             />
             {!collapsed.insights &&
               (data ? (

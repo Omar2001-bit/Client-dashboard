@@ -308,6 +308,15 @@ export function reconcileLayout(layout: ReportLayout | undefined, metrics: strin
     }
   }
 
+  // legacy saved layouts (from before Insights was reordered ahead of Numbers in
+  // SECTION_IDS) can still have Numbers first — swap them back so already-saved reports
+  // self-heal to the current default order without a one-off data migration
+  const numbersIdx = blocks.findIndex((b) => b.kind === "section" && b.id === "numbers");
+  const insightsIdx = blocks.findIndex((b) => b.kind === "section" && b.id === "insights");
+  if (numbersIdx !== -1 && insightsIdx !== -1 && numbersIdx < insightsIdx) {
+    [blocks[numbersIdx], blocks[insightsIdx]] = [blocks[insightsIdx], blocks[numbersIdx]];
+  }
+
   // append never-seen entries to their home sections
   const wanted: EntryRef[] = [
     ...metrics.map((m) => ({ kind: "kpi" as const, id: m })),

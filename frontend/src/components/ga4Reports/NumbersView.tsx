@@ -80,10 +80,10 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
       ? colorPeriods?.find((p) => bucketOverlapsRange(granularity, bucket, p.startDate, p.endDate))
       : undefined;
   return (
-    <div className="animate-fade-in overflow-x-auto rounded-xl border border-ink/10 bg-white">
+    <div className="animate-fade-in max-h-[560px] overflow-auto rounded-xl border border-ink/10 bg-white">
       <Table>
         <THead>
-          <TR className="hover:bg-transparent">
+          <TR className="sticky top-0 z-10 bg-white hover:bg-transparent">
             <TH className="px-4 py-3">{dimList.map(humanize).join(" · ")}</TH>
             {data.metrics.map((m) => (
               <TH key={m} className="px-4 py-3 text-right" colSpan={hasCompare ? 3 : 1}>
@@ -92,7 +92,7 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
             ))}
           </TR>
           {hasCompare && (
-            <TR className="text-right text-[11px] text-ink/50 hover:bg-transparent">
+            <TR className="sticky top-[40px] z-10 bg-white text-right text-[11px] text-ink/50 hover:bg-transparent">
               <TH className="px-4 py-1.5 text-left font-normal"></TH>
               {data.metrics.map((m) => (
                 <FragmentHeads key={m} />
