@@ -16,5 +16,48 @@ service firebase.storage {
                       || request.auth.token.clientId == clientId);
       allow write: if false; // Cloud Functions only
     }
+
+    // Support chat attachments: one file per chat message. {messageId} is the
+    // pre-generated Firestore message doc id (see supportChat.ts newChatMessageRef),
+    // so each attachment object maps 1:1 to its message doc.
+    //
+    // Mirrors firestore.rules' isAdmin()/isClientOf() (including executiveAdmin and
+    // the Firestore-doc-role fallback) via firestore.get() — Storage rules can't
+    // share functions with Firestore rules, so this is intentionally duplicated
+    // rather than reusing the weaker claim-only checks the logo/exports blocks above
+    // use. firestore.get() only reaches the (default) Firestore database.
+    match /supportAttachments/{clientId}/{messageId}/{fileName} {
+      function isAuthed() {
+        return request.auth != null;
+      }
+      function isAdmin() {
+        return isAuthed()
+            && (
+              request.auth.token.role == "admin"
+              || request.auth.token.role == "executiveAdmin"
+              || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin"
+              || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "executiveAdmin"
+            );
+      }
+      function isClientOf(cid) {
+        return isAuthed()
+            && (
+              (request.auth.token.role == "client" && request.auth.token.clientId == cid)
+              || (
+                firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "client"
+                && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.clientId == cid
+              )
+            );
+      }
+
+      allow read: if isAdmin() || isClientOf(clientId);
+
+      // Defense-in-depth only, not a hard security boundary — request.resource.size
+      // and the filename are client-supplied. Real hardening (virus scan, server-
+      // verified content sniffing) would need a Cloud Function and is out of scope.
+      allow write: if (isAdmin() || isClientOf(clientId))
+                   && request.resource.size < 10 * 1024 * 1024
+                   && !fileName.lower().matches(".*[.](exe|bat|cmd|msi|sh|dll|js)$");
+    }
   }
 }

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import type { UploadTask } from "firebase/storage";
 import { db } from "@/lib/firebase";
-import { sendChatMessage, markAsRead } from "@/lib/supportChat";
+import { sendChatMessage, markAsRead, newChatMessageRef } from "@/lib/supportChat";
+import { validateAttachment, uploadChatAttachment } from "@/lib/chatAttachments";
 
 export interface ChatMessage {
   id: string;
@@ -9,6 +11,19 @@ export interface ChatMessage {
   senderRole: "client" | "admin";
   senderName: string;
   createdAt: { toDate(): Date } | null;
+  attachment?: {
+    url: string;
+    name: string;
+    contentType: string;
+    size: number;
+    path: string;
+  };
+}
+
+export interface PendingAttachment {
+  file: File;
+  progress: number; // 0-100
+  error: string | null;
 }
 
 interface UseSupportChatThreadArgs {
@@ -28,6 +43,8 @@ export function useSupportChatThread({ clientId, clientName, myRole, myName, sen
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
+  const uploadTaskRef = useRef<UploadTask | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,5 +86,52 @@ export function useSupportChatThread({ clientId, clientName, myRole, myName, sen
     }
   };
 
-  return { messages, text, setText, sending, handleSend, bottomRef };
+  const handleAttach = async (file: File) => {
+    if (!clientId || !senderId || pendingAttachment) return; // one upload in flight per thread at a time
+    const validationError = validateAttachment(file);
+    if (validationError) {
+      setPendingAttachment({ file, progress: 0, error: validationError });
+      return;
+    }
+    const caption = text.trim();
+    setText("");
+    setPendingAttachment({ file, progress: 0, error: null });
+    const messageRef = newChatMessageRef(clientId);
+    const { task, result } = uploadChatAttachment(clientId, messageRef.id, file, (pct) =>
+      setPendingAttachment((p) => (p ? { ...p, progress: pct } : p))
+    );
+    uploadTaskRef.current = task;
+    try {
+      const { url, path } = await result;
+      await sendChatMessage({
+        clientId,
+        clientName,
+        text: caption,
+        senderId,
+        senderRole: myRole,
+        senderName: myName,
+        attachment: { url, path, name: file.name, contentType: file.type || "application/octet-stream", size: file.size },
+        messageRef,
+      });
+      onMessageSent?.(caption);
+      setPendingAttachment(null);
+    } catch (err: unknown) {
+      if ((err as { code?: string })?.code === "storage/canceled") {
+        setPendingAttachment(null);
+      } else {
+        console.error("[chat] attachment upload failed:", err);
+        setPendingAttachment((p) => (p ? { ...p, error: "Upload failed — try again." } : p));
+      }
+    } finally {
+      uploadTaskRef.current = null;
+    }
+  };
+
+  const cancelAttachment = () => {
+    uploadTaskRef.current?.cancel();
+    uploadTaskRef.current = null;
+    setPendingAttachment(null);
+  };
+
+  return { messages, text, setText, sending, handleSend, bottomRef, pendingAttachment, handleAttach, cancelAttachment };
 }

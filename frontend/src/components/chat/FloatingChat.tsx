@@ -11,7 +11,9 @@ import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { markAsRead, notifyAdminByEmail } from "@/lib/supportChat";
 import { useSupportChatThread } from "@/hooks/useSupportChatThread";
-import { MessageSquare, X, Send, ArrowLeft } from "lucide-react";
+import { ChatThread } from "@/components/support/ChatThread";
+import { PendingAttachmentRow } from "@/components/support/PendingAttachmentRow";
+import { MessageSquare, X, Send, ArrowLeft, Paperclip } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,13 +23,6 @@ interface Ticket {
   lastMessage?: string;
   unreadAdmin: number;
   unreadClient: number;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatTime(ts: { toDate(): Date } | null | undefined) {
-  if (!ts?.toDate) return "";
-  return ts.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 // ─── Chat view (shared between client and admin) ──────────────────────────────
@@ -51,8 +46,9 @@ function ChatMessages({
 }) {
   const { user } = useAuthStore();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, text, setText, sending, handleSend, bottomRef } = useSupportChatThread({
+  const { messages, text, setText, sending, handleSend, bottomRef, pendingAttachment, handleAttach, cancelAttachment } = useSupportChatThread({
     clientId,
     clientName,
     myRole,
@@ -104,49 +100,50 @@ function ChatMessages({
             </p>
           </div>
         )}
-        {messages.map((msg) => {
-          const isMe = msg.senderRole === myRole;
-          return (
-            <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${
-                  isMe ? "bg-brand-500 text-ink-deep" : "bg-ink/5 text-ink"
-                }`}
-              >
-                {!isMe && (
-                  <p className="text-[10px] font-semibold text-ink/40 mb-0.5">
-                    {msg.senderName}
-                  </p>
-                )}
-                <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
-                <p className={`text-[10px] mt-0.5 ${isMe ? "text-ink/50 text-right" : "text-ink/30"}`}>
-                  {formatTime(msg.createdAt)}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-        <div ref={bottomRef} />
+        <ChatThread messages={messages} isMine={(msg) => msg.senderRole === myRole} bottomRef={bottomRef} compact />
       </div>
 
       {/* Input */}
-      <div className="flex items-end gap-2 px-3 py-3 border-t border-ink/10 shrink-0">
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message…"
-          rows={1}
-          className="flex-1 resize-none rounded-xl border border-ink/10 px-3 py-2 text-sm focus:outline-none focus:border-brand-300 max-h-24 leading-relaxed"
-        />
-        <button
-          onClick={handleSend}
-          disabled={!text.trim() || sending}
-          className="h-9 w-9 rounded-xl bg-brand-500 flex items-center justify-center hover:bg-brand-400 transition-colors disabled:opacity-40 shrink-0"
-        >
-          <Send className="h-4 w-4 text-ink-deep" />
-        </button>
+      <div className="px-3 py-3 border-t border-ink/10 shrink-0 space-y-2">
+        {pendingAttachment && <PendingAttachmentRow pending={pendingAttachment} onCancel={cancelAttachment} />}
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleAttach(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || !!pendingAttachment}
+            title="Attach a file"
+            aria-label="Attach a file"
+            className="h-9 w-9 rounded-xl border border-ink/10 flex items-center justify-center text-ink/50 hover:bg-ink/5 hover:text-ink transition-colors disabled:opacity-40 shrink-0"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          <textarea
+            ref={inputRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message…"
+            rows={1}
+            className="flex-1 resize-none rounded-xl border border-ink/10 px-3 py-2 text-sm focus:outline-none focus:border-brand-300 max-h-24 leading-relaxed"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!text.trim() || sending}
+            className="h-9 w-9 rounded-xl bg-brand-500 flex items-center justify-center hover:bg-brand-400 transition-colors disabled:opacity-40 shrink-0"
+          >
+            <Send className="h-4 w-4 text-ink-deep" />
+          </button>
+        </div>
       </div>
     </>
   );

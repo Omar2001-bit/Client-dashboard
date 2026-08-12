@@ -28,6 +28,22 @@ export async function ensureTicketExists(clientId: string, clientName: string) {
   return ref;
 }
 
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  contentType: string;
+  size: number;
+  path: string;
+}
+
+/** Allocates a Firestore message doc ID client-side with zero network calls, so an
+ * attachment's Storage path can be keyed 1:1 to its eventual message doc before the
+ * doc itself is written (the upload must finish — and have a download URL — before
+ * the message doc is created). */
+export function newChatMessageRef(clientId: string) {
+  return doc(collection(db, "supportTickets", clientId, "messages"));
+}
+
 export async function sendChatMessage({
   clientId,
   clientName,
@@ -35,6 +51,8 @@ export async function sendChatMessage({
   senderId,
   senderRole,
   senderName,
+  attachment,
+  messageRef,
 }: {
   clientId: string;
   clientName: string;
@@ -42,20 +60,30 @@ export async function sendChatMessage({
   senderId: string;
   senderRole: "client" | "admin";
   senderName: string;
+  attachment?: ChatAttachment;
+  /** Pre-generated via newChatMessageRef() — used for attachment sends so the Storage
+   * path can be chosen before the message doc is written. Omit for plain text sends. */
+  messageRef?: ReturnType<typeof doc>;
 }) {
   const ticketRef = await ensureTicketExists(clientId, clientName);
   const otherUnread = senderRole === "client" ? "unreadAdmin" : "unreadClient";
+  const lastMessagePreview = text || (attachment ? `📎 ${attachment.name}` : "");
+
+  const messageData = {
+    text,
+    senderId,
+    senderRole,
+    senderName,
+    createdAt: serverTimestamp(),
+    ...(attachment ? { attachment } : {}),
+  };
 
   await Promise.all([
-    addDoc(collection(db, "supportTickets", clientId, "messages"), {
-      text,
-      senderId,
-      senderRole,
-      senderName,
-      createdAt: serverTimestamp(),
-    }),
+    messageRef
+      ? setDoc(messageRef, messageData)
+      : addDoc(collection(db, "supportTickets", clientId, "messages"), messageData),
     updateDoc(ticketRef, {
-      lastMessage: text,
+      lastMessage: lastMessagePreview,
       lastMessageAt: serverTimestamp(),
       status: "open",
       [otherUnread]: increment(1),

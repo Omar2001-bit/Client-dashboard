@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import { notifyAdminByEmail } from "@/lib/supportChat";
 import { useSupportChatThread } from "@/hooks/useSupportChatThread";
 import { ChatThread } from "@/components/support/ChatThread";
-import { SendHorizontal, MessageSquare } from "lucide-react";
+import { PendingAttachmentRow } from "@/components/support/PendingAttachmentRow";
+import { SendHorizontal, MessageSquare, Paperclip } from "lucide-react";
 import { track } from "@/lib/activityTracker";
 
 export function SupportPage() {
@@ -23,8 +24,9 @@ export function SupportPage() {
   }, [clientId]);
 
   const myName = user?.displayName ?? user?.email ?? "";
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, text, setText, sending, handleSend, bottomRef } = useSupportChatThread({
+  const { messages, text, setText, sending, handleSend, bottomRef, pendingAttachment, handleAttach, cancelAttachment } = useSupportChatThread({
     clientId,
     clientName,
     myRole: "client",
@@ -64,25 +66,48 @@ export function SupportPage() {
         </CardBody>
 
         {/* Input */}
-        <div className="px-6 py-4 border-t border-ink/5 flex items-end gap-3">
-          <div className="flex-1">
-            <Textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Type your message… (Enter to send)"
-              rows={2}
-              className="resize-none"
+        <div className="px-6 py-4 border-t border-ink/5 space-y-2">
+          {pendingAttachment && <PendingAttachmentRow pending={pendingAttachment} onCancel={cancelAttachment} />}
+          <div className="flex items-end gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleAttach(file);
+                e.target.value = "";
+              }}
             />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || !!pendingAttachment}
+              title="Attach a file"
+              aria-label="Attach a file"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink/10 bg-white text-ink/50 transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <div className="flex-1">
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Type your message… (Enter to send)"
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+            <Button
+              onClick={handleSend}
+              disabled={!text.trim() || sending}
+              className="flex items-center gap-2 shrink-0"
+            >
+              <SendHorizontal className="h-4 w-4" />
+              Send
+            </Button>
           </div>
-          <Button
-            onClick={handleSend}
-            disabled={!text.trim() || sending}
-            className="flex items-center gap-2 shrink-0"
-          >
-            <SendHorizontal className="h-4 w-4" />
-            Send
-          </Button>
         </div>
       </Card>
     </div>
