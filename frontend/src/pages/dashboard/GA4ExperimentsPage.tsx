@@ -46,6 +46,7 @@ export function GA4ExperimentsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch, isFetching } = useGA4Data();
   const { settings } = useDashboardSettings(clientId);
@@ -208,7 +209,14 @@ export function GA4ExperimentsPage() {
                         </TR>
                       ))
                     : experiments.map((experiment) => (
-                        <TR key={experiment.experimentId}>
+                        <TR
+                          key={experiment.experimentId}
+                          selected={selectedExperimentId === experiment.experimentId}
+                          onClick={() =>
+                            setSelectedExperimentId((cur) => (cur === experiment.experimentId ? null : experiment.experimentId))
+                          }
+                          className="cursor-pointer"
+                        >
                           <TD className="font-medium text-ink">
                             <span className="block truncate">{experiment.name}</span>
                             <span className="text-[10px] text-ink/40">

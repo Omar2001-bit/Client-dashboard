@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, EyeOff, Eye, StickyNote, ArrowUp, ArrowDown } from "lucide-react";
 import { track } from "@/lib/activityTracker";
+import { isInteractiveClickTarget } from "@/lib/domEvents";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
 import {
   StatusBadge,
@@ -41,6 +42,7 @@ export function ExperimentListPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
   useScrollDepth();
 
   const currency = data?.client?.currency ?? "USD";
@@ -201,7 +203,15 @@ export function ExperimentListPage() {
                 : experiments.map((experiment) => {
                     const isClientHidden = clientExcluded.has(experiment.id);
                     return (
-                      <TR key={experiment.id} className={isClientHidden ? "opacity-40" : ""}>
+                      <TR
+                        key={experiment.id}
+                        selected={selectedExperimentId === experiment.id}
+                        onClick={(e) => {
+                          if (isInteractiveClickTarget(e)) return;
+                          setSelectedExperimentId((cur) => (cur === experiment.id ? null : experiment.id));
+                        }}
+                        className={`cursor-pointer ${isClientHidden ? "opacity-40" : ""}`}
+                      >
                         <TD className="font-medium text-ink">
                           <div className="flex min-w-0 items-center gap-1.5">
                             <span className="truncate">{experiment.name}</span>

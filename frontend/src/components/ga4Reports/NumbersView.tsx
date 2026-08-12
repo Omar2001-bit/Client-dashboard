@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChevronDown, ChevronUp, Inbox } from "lucide-react";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { metricLabel } from "@/lib/ga4Reports/metricLabels";
@@ -69,6 +70,7 @@ export function KpiTileContent({ apiName, data, metricsMeta, compact }: TileProp
  *  highlight period get tinted with that period's color, so the same phases marked on
  *  the graphs read here too. */
 export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) {
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const hasCompare = !!data.rangeB;
   const dimList = data.dimensions;
   const granularity = detectGranularity(dimList);
@@ -113,11 +115,15 @@ export default function NumbersView({ data, metricsMeta, colorPeriods }: Props) 
           ) : (
             data.rows.map((r, ri) => {
               const period = periodOf(r.dim);
+              const rowKey = `${r.dim}-${ri}`;
+              const isSelected = selectedRowKey === rowKey;
               return (
               <TR
-                key={`${r.dim}-${ri}`}
-                className="hover:bg-ink/[0.03]"
-                style={period ? { background: `${period.color}14` } : undefined}
+                key={rowKey}
+                selected={isSelected}
+                onClick={() => setSelectedRowKey((cur) => (cur === rowKey ? null : rowKey))}
+                className="cursor-pointer hover:bg-ink/[0.03]"
+                style={!isSelected && period ? { background: `${period.color}14` } : undefined}
               >
                 <TD className="max-w-[280px] truncate px-4 py-2.5 text-ink/70">
                   {period && (

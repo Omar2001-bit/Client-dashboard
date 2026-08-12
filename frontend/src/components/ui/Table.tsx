@@ -35,8 +35,12 @@ export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionEl
   return <tbody className={cn("divide-y divide-ink/5", className)} {...props} />;
 }
 
-export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("hover:bg-ink/[0.02]", className)} {...props} />;
+export function TR({
+  className,
+  selected,
+  ...props
+}: HTMLAttributes<HTMLTableRowElement> & { selected?: boolean }) {
+  return <tr className={cn("hover:bg-ink/[0.02]", selected && "bg-brand-50 hover:bg-brand-50", className)} {...props} />;
 }
 
 export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {

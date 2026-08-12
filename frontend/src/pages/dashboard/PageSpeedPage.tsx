@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { fetchWithColdStartRetry } from "@/lib/apiClient";
 import { track } from "@/lib/activityTracker";
+import { isInteractiveClickTarget } from "@/lib/domEvents";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
@@ -137,6 +138,7 @@ export function PageSpeedPage() {
   const [metricAverages, setMetricAverages] = useState<Record<string, number>>({});
   const [auditScoreAverages, setAuditScoreAverages] = useState<Record<string, number>>({});
   const [highlightedVitalKey, setHighlightedVitalKey] = useState<string | null>(null);
+  const [selectedResultUrl, setSelectedResultUrl] = useState<string | null>(null);
 
   // Guard: prevents stale Firestore reads from resetting `loading` to false
   // during the window between clicking "Run Report" and the server writing
@@ -831,7 +833,12 @@ export function PageSpeedPage() {
 
                     if (r.error) {
                       return (
-                        <TR key={r.url} className="hover:bg-transparent">
+                        <TR
+                          key={r.url}
+                          selected={selectedResultUrl === r.url}
+                          onClick={() => setSelectedResultUrl((cur) => (cur === r.url ? null : r.url))}
+                          className="cursor-pointer hover:bg-transparent"
+                        >
                           <TD className="px-5 py-3">
                             <div className="flex items-center gap-2">
                               <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
@@ -846,7 +853,15 @@ export function PageSpeedPage() {
                     }
 
                     return (
-                      <TR key={r.url} className="hover:bg-ink/[0.01]">
+                      <TR
+                        key={r.url}
+                        selected={selectedResultUrl === r.url}
+                        onClick={(e) => {
+                          if (isInteractiveClickTarget(e)) return;
+                          setSelectedResultUrl((cur) => (cur === r.url ? null : r.url));
+                        }}
+                        className="cursor-pointer hover:bg-ink/[0.01]"
+                      >
                         <TD className="px-5 py-3">
                           <a
                             href={r.url}

@@ -50,6 +50,7 @@ export function GA4DashboardPage() {
   const clientId = useAuthStore((s) => s.clientId);
   const { data, isLoading, error, refetch, isFetching } = useGA4Data();
   const { settings } = useDashboardSettings(clientId);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
 
   const overrides = settings.experimentOverrides ?? {};
 
@@ -269,7 +270,14 @@ export function GA4DashboardPage() {
                     </THead>
                     <TBody>
                       {sortedExperiments.map((experiment) => (
-                        <TR key={experiment.experimentId}>
+                        <TR
+                          key={experiment.experimentId}
+                          selected={selectedExperimentId === experiment.experimentId}
+                          onClick={() =>
+                            setSelectedExperimentId((cur) => (cur === experiment.experimentId ? null : experiment.experimentId))
+                          }
+                          className="cursor-pointer"
+                        >
                           <TD className="font-medium text-ink">
                             <span className="block truncate">{experiment.name}</span>
                             <span className="text-[10px] text-ink/40">

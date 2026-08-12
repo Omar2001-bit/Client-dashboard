@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { DollarSign, Package, Percent, ShoppingCart, TrendingUp, Receipt } from "lucide-react";
 import { track } from "@/lib/activityTracker";
+import { isInteractiveClickTarget } from "@/lib/domEvents";
 import { useScrollDepth } from "@/hooks/useScrollDepth";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { KPICard } from "@/components/ui/KPICard";
@@ -233,6 +234,7 @@ export function ClientDashboardPage({ preview = false }: Props) {
 
   const [pinnedRevenuePoint, setPinnedRevenuePoint] = useState<DailyRevenuePoint | null>(null);
   const [hoveredRevenuePoint, setHoveredRevenuePoint] = useState<DailyRevenuePoint | null>(null);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
   const activeRevenuePoint = hoveredRevenuePoint ?? pinnedRevenuePoint ?? revenueSeriesWithBreakdown[0] ?? null;
   const isPinned = !hoveredRevenuePoint && !!pinnedRevenuePoint;
 
@@ -548,7 +550,15 @@ export function ClientDashboardPage({ preview = false }: Props) {
               </THead>
               <TBody>
                 {recentExperiments.map(({ experiment, uplifts }) => (
-                  <TR key={experiment.id}>
+                  <TR
+                    key={experiment.id}
+                    selected={selectedExperimentId === experiment.id}
+                    onClick={(e) => {
+                      if (isInteractiveClickTarget(e)) return;
+                      setSelectedExperimentId((cur) => (cur === experiment.id ? null : experiment.id));
+                    }}
+                    className="cursor-pointer"
+                  >
                     <TD className="whitespace-nowrap px-6 py-4 font-medium text-ink">
                       <Link
                         to={`/dashboard/experiments/${experiment.id}`}
