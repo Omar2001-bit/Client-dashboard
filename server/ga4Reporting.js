@@ -118,15 +118,23 @@ function enumerateBuckets(g, start, end) {
     }
     return out;
   }
+  // isoWeek: walk Monday-to-Monday. Same DST-safety technique as enumerateDates — each
+  // Monday is rebuilt fresh from the anchor Monday's Y/M/D + integer week offset, never
+  // by mutating the previous iteration's Date, and the boundary check compares formatted
+  // date strings instead of instants.
   const { isoYear, isoWeek } = isoWeekOf(startD);
-  let monday = isoWeekMonday(isoYear, isoWeek);
-  while (monday.getTime() <= endD.getTime()) {
+  const monday0 = isoWeekMonday(isoYear, isoWeek);
+  const y0 = monday0.getFullYear();
+  const m0 = monday0.getMonth();
+  const d0 = monday0.getDate();
+  for (let i = 0; ; i++) {
+    const monday = new Date(y0, m0, d0 + i * 7);
+    if (fmt(monday) > end) break;
     const k = bucketKey(g, monday);
     if (!seen.has(k)) {
       seen.add(k);
       out.push(k);
     }
-    monday = addDays(monday, 7);
   }
   return out;
 }

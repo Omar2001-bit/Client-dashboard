@@ -6,6 +6,7 @@ import { useGa4ReportsMetadata } from "@/hooks/useGa4ReportsMetadata";
 import { metricLabel } from "@/lib/ga4Reports/metricLabels";
 import { deltaPct, fmtCompact, fmtDelta } from "@/lib/ga4Reports/format";
 import { DELTA_DOWN, DELTA_UP, INK_MUTED, SERIES_A } from "@/lib/ga4Reports/theme";
+import { metricIsInverted } from "@/lib/ga4Reports/types";
 import type { Ga4ReportDoc } from "@/types";
 
 interface Props {
@@ -58,7 +59,7 @@ export default function ReportPreviewCard({ clientId, report, to }: Props) {
             {delta !== null && (
               <span
                 className="text-xs font-medium tabular-nums"
-                style={{ color: delta < 0 ? DELTA_DOWN : DELTA_UP }}
+                style={{ color: (metricIsInverted(metric) ? delta > 0 : delta < 0) ? DELTA_DOWN : DELTA_UP }}
               >
                 {fmtDelta(delta)}
               </span>

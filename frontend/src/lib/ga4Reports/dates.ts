@@ -25,14 +25,22 @@ export function maxSelectableDate(today = new Date()): string {
 
 /** Every calendar date from start to end inclusive, as "YYYY-MM-DD". Used to build a
  *  canonical day sequence for a range instead of trusting GA4 to return a dense row per
- *  day (it won't, once a dimension like eventName makes rows genuinely sparse). */
+ *  day (it won't, once a dimension like eventName makes rows genuinely sparse).
+ *
+ *  Builds each day fresh from the original start Y/M/D + integer offset (never by
+ *  incrementally mutating a previous iteration's Date) and compares formatted
+ *  "YYYY-MM-DD" strings, not Date instants — a DST transition inside the range still
+ *  shifts the wall-clock time-of-day, but never the calendar date each iteration lands
+ *  on. The previous instant-comparison version silently dropped a range's last day
+ *  whenever it crossed a spring-forward transition in the browser's local timezone
+ *  (mirrors the equivalent bug already fixed in server/ga4Reporting.js). */
 export function enumerateDates(start: string, end: string): string[] {
+  const [sy, sm, sd] = start.split("-").map(Number);
   const out: string[] = [];
-  let d = new Date(start + "T00:00:00");
-  const endD = new Date(end + "T00:00:00");
-  while (d.getTime() <= endD.getTime()) {
-    out.push(fmt(d));
-    d = addDays(d, 1);
+  for (let i = 0; ; i++) {
+    const s = fmt(new Date(sy, sm - 1, sd + i));
+    if (s > end) break;
+    out.push(s);
   }
   return out;
 }
@@ -119,16 +127,23 @@ export function enumerateBuckets(g: TimeGranularity, start: string, end: string)
     }
     return out;
   }
-  // isoWeek: walk Monday-to-Monday
+  // isoWeek: walk Monday-to-Monday. Same DST-safety technique as enumerateDates — each
+  // Monday is rebuilt fresh from the anchor Monday's Y/M/D + integer week offset, never
+  // by mutating the previous iteration's Date, and the boundary check compares formatted
+  // date strings instead of instants.
   const { isoYear, isoWeek } = isoWeekOf(startD);
-  let monday = isoWeekMonday(isoYear, isoWeek);
-  while (monday.getTime() <= endD.getTime()) {
+  const monday0 = isoWeekMonday(isoYear, isoWeek);
+  const y0 = monday0.getFullYear();
+  const m0 = monday0.getMonth();
+  const d0 = monday0.getDate();
+  for (let i = 0; ; i++) {
+    const monday = new Date(y0, m0, d0 + i * 7);
+    if (fmt(monday) > end) break;
     const k = bucketKey(g, monday);
     if (!seen.has(k)) {
       seen.add(k);
       out.push(k);
     }
-    monday = addDays(monday, 7);
   }
   return out;
 }
@@ -200,7 +215,17 @@ export function resolveRange(sel: DateRangeSel, today = new Date()): ResolvedRan
       return { startDate: fmt(addDays(yesterday, -89)), endDate: fmt(yesterday) };
     case "thisMonth": {
       const start = new Date(today.getFullYear(), today.getMonth(), 1);
-      return { startDate: fmt(start), endDate: fmt(yesterday < start ? start : yesterday) };
+      if (yesterday < start) {
+        // Day 1 of the month: zero complete days exist yet. GA4 rejects an
+        // inverted (start > end) range outright, and showing today's still-
+        // accruing data would break the never-past-yesterday rule every other
+        // preset honors — fall back to the last complete month instead.
+        return {
+          startDate: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+          endDate: fmt(new Date(today.getFullYear(), today.getMonth(), 0)),
+        };
+      }
+      return { startDate: fmt(start), endDate: fmt(yesterday) };
     }
     case "lastMonth": {
       const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -238,10 +263,16 @@ export function resolveCompare(sel: CompareSel, rangeA: ResolvedRange): Resolved
   const end = new Date(rangeA.endDate + "T00:00:00");
   const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
   if (sel.preset === "samePeriodLastYear") {
-    const s = new Date(start);
-    s.setFullYear(s.getFullYear() - 1);
-    const e = new Date(end);
-    e.setFullYear(e.getFullYear() - 1);
+    // Date.setFullYear() silently rolls Feb 29 forward to Mar 1 in a non-leap
+    // target year, which both anchors the wrong day and — if the end date were
+    // shifted the same way — would silently shrink the comparison period by a
+    // day. Clamp the start to Feb 28 instead, then always rebuild the end date
+    // from the clamped start + the current period's own length, so the two
+    // periods are guaranteed the same size regardless of leap-year quirks.
+    const y = start.getFullYear() - 1;
+    const daysInTargetMonth = new Date(y, start.getMonth() + 1, 0).getDate();
+    const s = new Date(y, start.getMonth(), Math.min(start.getDate(), daysInTargetMonth));
+    const e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + days - 1);
     return { startDate: fmt(s), endDate: fmt(e) };
   }
   if (sel.preset === "fixedEnd") {

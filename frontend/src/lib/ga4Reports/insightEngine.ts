@@ -143,7 +143,12 @@ function ruleConversionDecomposition(c: Ctx) {
   if (Math.abs(purchDelta) < 10) return;
   const lnP = Math.log(dP);
   const trafficShare = Math.abs(lnP) > 1e-6 ? Math.log(dS) / lnP : 0;
-  const trafficDominant = Math.abs(trafficShare) >= 0.5;
+  // Only trust the log-ratio magnitude as "traffic is the dominant cause" when traffic
+  // and purchases actually moved the same direction — when they move opposite ways,
+  // traffic mathematically can't be why purchases changed (it pulled the other way),
+  // so conversion rate is the correct attribution regardless of the ratio's magnitude.
+  const sameDirection = (dS >= 1) === (dP >= 1);
+  const trafficDominant = sameDirection && Math.abs(trafficShare) >= 0.5;
   const cvrDelta = (dP / dS - 1) * 100;
   const sessDelta = (dS - 1) * 100;
   const down = purchDelta < 0;
@@ -600,7 +605,10 @@ function ruleMixShift(c: Ctx) {
   if (dims.length === 0 || dims[0] === "date" || dims[0] === "isoWeek" || dims[0] === "month" || !c.hasCompare) return;
   const si = findMetric(data, "sessions");
   if (si === -1 || data.rows.length < 2) return;
-  const cvrIdx = data.metrics.findIndex((m) => isConvRateMetric(m) && convRateDenom(m) === "sessions");
+  // Purchase rate specifically — not just the first convs:* metric in the report, which
+  // could be a different event entirely (e.g. convs:add_to_cart) and get mislabeled
+  // "buying rate" below. Same filter ruleDailyPatterns uses.
+  const cvrIdx = data.metrics.findIndex((m) => isConvRateMetric(m) && convRateEventName(m) === "purchase" && convRateDenom(m) === "sessions");
   const totalA = data.rows.reduce((s, r) => s + (r.a[si] ?? 0), 0);
   const totalB = data.rows.reduce((s, r) => s + (r.b?.[si] ?? 0), 0);
   if (totalA < MIN_DENOMINATOR || totalB < MIN_DENOMINATOR) return;

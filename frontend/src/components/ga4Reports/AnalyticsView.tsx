@@ -74,6 +74,28 @@ export function HighlightPeriodsSection({ data, metricsMeta, colorPeriods }: Pro
     );
   }
 
+  // Best period per metric COLUMN (which highlighted period wins for this one metric),
+  // not per row — comparing different metrics' raw magnitudes against each other within
+  // a single period is meaningless (a session count will always dwarf a percentage).
+  // Respects metricIsInverted: for a metric where more is bad (refunds, cart removals),
+  // "best" is the smallest value, matching buildInsights.ts's already-correct narrative
+  // best/worst logic.
+  const bestPeriodIdxByMetric = data.metrics.map((m, i) => {
+    if (periodRows.length < 2) return -1;
+    const inverted = metricIsInverted(m);
+    let bestIdx = -1;
+    let bestVal = inverted ? Infinity : -Infinity;
+    periodRows.forEach((pr, idx) => {
+      const v = pr.totals[i] ?? 0;
+      if (v <= 0) return;
+      if (inverted ? v < bestVal : v > bestVal) {
+        bestVal = v;
+        bestIdx = idx;
+      }
+    });
+    return bestIdx;
+  });
+
   return (
     <div className="animate-fade-in">
       <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/50">
@@ -93,8 +115,7 @@ export function HighlightPeriodsSection({ data, metricsMeta, colorPeriods }: Pro
             </TR>
           </THead>
           <TBody>
-            {periodRows.map(({ period, totals }) => {
-              const best = Math.max(...totals);
+            {periodRows.map(({ period, totals }, rowIdx) => {
               return (
                 <TR key={period.id} className="hover:bg-transparent">
                   <TD className="px-4 py-2.5 text-ink/70">
@@ -106,7 +127,7 @@ export function HighlightPeriodsSection({ data, metricsMeta, colorPeriods }: Pro
                   </TD>
                   {totals.map((t, i) => {
                     const type = data.metricHeaders[i]?.type;
-                    const isBest = t === best && totals.length > 1 && best > 0;
+                    const isBest = bestPeriodIdxByMetric[i] === rowIdx;
                     return (
                       <TD
                         key={i}

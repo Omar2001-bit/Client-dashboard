@@ -6,7 +6,7 @@ import { bucketOverlapsRange, detectGranularity } from "./dates";
 import { fmtValue } from "./format";
 import { metricLabel } from "./metricLabels";
 import { analyzeReport, type EngineInsight } from "./insightEngine";
-import type { ColorPeriod, MetaItem, ReportResponse } from "./types";
+import { metricIsInverted, type ColorPeriod, type MetaItem, type ReportResponse } from "./types";
 
 /** Sums a metric's current-period rows that fall inside a highlight period — used for
  *  the "which period performed best" comparison. */
@@ -41,10 +41,17 @@ export function buildInsights(
       const totals = colorPeriods.map((p) => ({ period: p, total: periodTotal(data, p, granularity, i) }));
       const withData = totals.filter((t) => t.total > 0);
       if (withData.length < 2) return;
-      const best = withData.reduce((a, b) => (b.total > a.total ? b : a));
-      const worst = withData.reduce((a, b) => (b.total < a.total ? b : a));
+      const inverted = metricIsInverted(m);
+      // For an inverted metric (refunds, cart removals — more is bad), "strongest" is the
+      // smallest total, not the largest.
+      const best = inverted
+        ? withData.reduce((a, b) => (b.total < a.total ? b : a))
+        : withData.reduce((a, b) => (b.total > a.total ? b : a));
+      const worst = inverted
+        ? withData.reduce((a, b) => (b.total > a.total ? b : a))
+        : withData.reduce((a, b) => (b.total < a.total ? b : a));
       if (best.period.id === worst.period.id) return;
-      const upPct = ((best.total - worst.total) / worst.total) * 100;
+      const upPct = (Math.abs(best.total - worst.total) / worst.total) * 100;
       const type = data.metricHeaders[i]?.type;
       out.push({
         id: `highlight:${m}`,
