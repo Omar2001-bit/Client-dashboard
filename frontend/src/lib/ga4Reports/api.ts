@@ -52,12 +52,16 @@ export interface FetchGa4ReportDataParams {
 
 export async function fetchGa4ReportData(params: FetchGa4ReportDataParams): Promise<import("./types").ReportResponse> {
   const { clientId, reportId, rangeA, rangeB, metrics, dimensions, signal } = params;
-  const resp = await fetchWithAuth("/api/ga4-reports/data", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, reportId, rangeA, rangeB: rangeB ?? null, metrics, dimensions }),
-    signal,
-  });
+  const resp = await fetchWithAuth(
+    "/api/ga4-reports/data",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, reportId, rangeA, rangeB: rangeB ?? null, metrics, dimensions }),
+      signal,
+    },
+    { retryOnNetworkFailure: true }
+  );
   return readJsonOrThrow(resp, "Failed to load report data");
 }
 
@@ -77,11 +81,15 @@ export interface Ga4FunnelDataResult {
 
 export async function fetchGa4FunnelData(params: FetchGa4FunnelDataParams): Promise<Ga4FunnelDataResult> {
   const { clientId, reportId, funnelId, rangeA, rangeB, signal } = params;
-  const resp = await fetchWithAuth("/api/ga4-reports/funnel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, reportId, funnelId, rangeA, rangeB: rangeB ?? null }),
-    signal,
-  });
+  const resp = await fetchWithAuth(
+    "/api/ga4-reports/funnel",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, reportId, funnelId, rangeA, rangeB: rangeB ?? null }),
+      signal,
+    },
+    { retryOnNetworkFailure: true }
+  );
   return readJsonOrThrow<Ga4FunnelDataResult>(resp, "Failed to load funnel data");
 }

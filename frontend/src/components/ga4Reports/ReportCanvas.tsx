@@ -229,10 +229,13 @@ export default function ReportCanvas({
   );
 
   useEffect(() => {
+    // Admin-only property picker data — lockView (client-share mode) never renders it,
+    // and a client-role viewer would just 403 on this call for nothing.
+    if (lockView) return;
     listGa4Properties()
       .then(setProperties)
       .catch(() => {});
-  }, []);
+  }, [lockView]);
   useEffect(() => {
     if (!config.property) return;
     getGa4ReportsMetadata(config.property)

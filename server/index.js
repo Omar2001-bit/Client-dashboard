@@ -179,45 +179,52 @@ function requireExecutiveAdminOrClientOwnership(getClientId) {
 // clientId comes only from the verified token; the route then 403s unless that client's
 // own configured ga4PropertyId matches the propertyId being requested, so a client can
 // never pull another client's GA4 property through the shared service account.
-async function requireClientOwnsGA4Property(req, res, next) {
-  try {
-    const idToken = getAuthToken(req);
-    if (!idToken) return res.status(401).json({ error: "Missing auth token" });
+// getPropertyId(req) locates the requested GA4 property id in the request — POST routes
+// carry it in the body (propertyId), GET routes in the query string (property).
+function requireClientOwnsGA4Property(getPropertyId) {
+  return async function (req, res, next) {
+    try {
+      const idToken = getAuthToken(req);
+      if (!idToken) return res.status(401).json({ error: "Missing auth token" });
 
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    if (decoded.role === "admin" || decoded.role === "executiveAdmin") {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      if (decoded.role === "admin" || decoded.role === "executiveAdmin") {
+        req.user = decoded;
+        return next();
+      }
+
+      let clientId = decoded.role === "client" ? decoded.clientId : undefined;
+      let role = decoded.role;
+      if (!clientId) {
+        const userSnap = await admin.firestore().doc(`users/${decoded.uid}`).get();
+        const userData = userSnap.data();
+        role = userData?.role;
+        clientId = userData?.clientId;
+      }
+      if (role === "admin" || role === "executiveAdmin") {
+        req.user = decoded;
+        return next();
+      }
+      if (role !== "client" || !clientId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const clientSnap = await admin.firestore().doc(`clients/${clientId}`).get();
+      // clients/{id}.ga4PropertyId is always stored bare ("268549624"); callers can pass
+      // either that or the "properties/268549624" resource-name form the ga4-reports
+      // routes use internally (PROPERTY_RE) — normalize before comparing.
+      const requestedPropertyId = String(getPropertyId(req) || "").replace(/^properties\//, "");
+      if (!clientSnap.exists || clientSnap.data()?.ga4PropertyId !== requestedPropertyId) {
+        return res.status(403).json({ error: "Not authorized for this GA4 property" });
+      }
+
       req.user = decoded;
       return next();
+    } catch (err) {
+      console.error("[auth] GA4 property ownership check failed:", err.message);
+      return res.status(401).json({ error: "Invalid auth token" });
     }
-
-    let clientId = decoded.role === "client" ? decoded.clientId : undefined;
-    let role = decoded.role;
-    if (!clientId) {
-      const userSnap = await admin.firestore().doc(`users/${decoded.uid}`).get();
-      const userData = userSnap.data();
-      role = userData?.role;
-      clientId = userData?.clientId;
-    }
-    if (role === "admin" || role === "executiveAdmin") {
-      req.user = decoded;
-      return next();
-    }
-    if (role !== "client" || !clientId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    const clientSnap = await admin.firestore().doc(`clients/${clientId}`).get();
-    const requestedPropertyId = String(req.body?.propertyId || "");
-    if (!clientSnap.exists || clientSnap.data()?.ga4PropertyId !== requestedPropertyId) {
-      return res.status(403).json({ error: "Not authorized for this GA4 property" });
-    }
-
-    req.user = decoded;
-    return next();
-  } catch (err) {
-    console.error("[auth] GA4 property ownership check failed:", err.message);
-    return res.status(401).json({ error: "Invalid auth token" });
-  }
+  };
 }
 
 // ── Encryption helpers (AES-256-GCM) ──────────────────────────────────────────
@@ -902,7 +909,7 @@ app.get("/api/ga4/properties", requireAdmin, async (_req, res) => {
 });
 
 // Body: { propertyId, experimentDates: { [experimentId]: { startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD"|"today" } } }
-app.post("/api/ga4/experiment-data", requireClientOwnsGA4Property, async (req, res) => {
+app.post("/api/ga4/experiment-data", requireClientOwnsGA4Property((req) => req.body?.propertyId), async (req, res) => {
   const { propertyId, experimentDates = {} } = req.body ?? {};
   if (!propertyId) return res.status(400).json({ error: "propertyId required" });
   try {
@@ -1052,7 +1059,7 @@ function trailing28DayRange() {
   return { startDate: fmtDate(start), endDate: fmtDate(yesterday) };
 }
 
-app.get("/api/ga4-reports/metadata", requireAdmin, async (req, res) => {
+app.get("/api/ga4-reports/metadata", requireClientOwnsGA4Property((req) => req.query?.property), async (req, res) => {
   const property = String(req.query.property || "");
   if (!PROPERTY_RE.test(property)) return res.status(400).json({ error: "Invalid property" });
   try {

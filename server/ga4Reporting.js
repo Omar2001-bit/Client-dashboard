@@ -31,13 +31,20 @@ function addDays(d, n) {
   return c;
 }
 
+// Builds each day fresh from the original start Y/M/D + integer day offset (never by
+// incrementally mutating a previous iteration's Date) and compares formatted "YYYY-MM-DD"
+// strings, not Date instants — a DST transition inside the range still shifts the
+// wall-clock time-of-day, but never the calendar date each iteration lands on. The
+// previous instant-comparison version silently dropped a range's last day whenever it
+// crossed a spring-forward transition in the process's local timezone (confirmed: Cairo's
+// 2026-04-24 transition made a real 89-day range enumerate as only 88 days).
 function enumerateDates(start, end) {
+  const [sy, sm, sd] = start.split("-").map(Number);
   const out = [];
-  let d = new Date(start + "T00:00:00");
-  const endD = new Date(end + "T00:00:00");
-  while (d.getTime() <= endD.getTime()) {
-    out.push(fmt(d));
-    d = addDays(d, 1);
+  for (let i = 0; ; i++) {
+    const s = fmt(new Date(sy, sm - 1, sd + i));
+    if (s > end) break;
+    out.push(s);
   }
   return out;
 }
