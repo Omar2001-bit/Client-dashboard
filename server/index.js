@@ -233,7 +233,7 @@ function requireClientOwnsGA4Property(getPropertyId) {
 const { encrypt, decrypt, readConvertCredential } = require("./lib/encryption");
 
 const SUPPORT_EMAIL = "omar@optimizers.agency";
-const RESEND_FROM = process.env.RESEND_FROM || "Optimizers Support <onboarding@resend.dev>";
+const RESEND_FROM = process.env.RESEND_FROM || "Optimizers Agency <hello@optimizers.agency>";
 const CLICKUP_API_BASE = "https://api.clickup.com/api/v2";
 const CLICKUP_ACCESS_DOC = "appConfig/clickupAccess";
 
